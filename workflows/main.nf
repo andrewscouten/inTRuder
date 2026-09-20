@@ -83,7 +83,9 @@ process ANNOTATE_COMPRESSIBILITY {
 
     script:
     // Calls the `compression` console script the same way FIND_NOVEL calls
-    // `uv run novelty`. The annotator itself came in with #81 and currently
+    // `novelty`. Both are on PATH inside the container (docker/pipeline.Dockerfile
+    // puts the pixi environment there), so no task needs a manifest or an
+    // activation step in the directory Nextflow happens to stage it in. The annotator itself came in with #81 and currently
     // sits at src/python/intruder/compression/add_compression.py; a
     // follow-up moves it to intruder/pipeline/compression/annotate.py and
     // registers it in [project.scripts]. Targeting the console script rather
@@ -98,7 +100,7 @@ process ANNOTATE_COMPRESSIBILITY {
     // Bash-style ${var%.vcf} does NOT work here: Nextflow interpolates
     // ${...} as Groovy before the shell ever sees it.
     """
-    uv run compression -i ${vcf_file} -o ${vcf_file.simpleName}_comp.vcf
+    compression -i ${vcf_file} -o ${vcf_file.simpleName}_comp.vcf
     """
 }
 
@@ -125,7 +127,7 @@ process FIND_NOVEL {
     // either, so nothing is silently discarded - every row is kept and
     // tagged, with filtering decisions left to a downstream step.
     """
-    uv run novelty --platform ucsc,trexplorer annotate ${trf_tsv} novelty_output.tsv \
+    novelty --platform ucsc,trexplorer annotate ${trf_tsv} novelty_output.tsv \
         --min-rep-units 3
     """
 }

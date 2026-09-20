@@ -29,9 +29,9 @@ they disagree in exactly the cases that matter — see
 Same two ways as the novelty screen, and the same program:
 
 ```bash
-# through uv, from anywhere in the repo -- what the examples below use
-uv sync                      # once; installs the `strchive` command, editable
-uv run strchive --help
+# through pixi, from anywhere in the repo -- what the examples below use
+pixi install                      # once; installs the `strchive` command, editable
+pixi run strchive --help
 
 # or directly, without installing anything
 cd src/python
@@ -48,13 +48,13 @@ Three commands:
 
 ```bash
 # the filtered novelty output, which is what this step is for
-uv run strchive annotate \
+pixi run strchive annotate \
     data/sv_output/survivor_multi_sample_vcf/first_500_INS.novelty.filtered.tsv \
     data/sv_output/survivor_multi_sample_vcf/first_500_INS.strchive.tsv \
     --window 10
 
 # one locus by hand
-uv run strchive query --chrom chr4 --pos 39348430 --motif AAGGG --rep-units 500
+pixi run strchive query --chrom chr4 --pos 39348430 --motif AAGGG --rep-units 500
 ```
 
 ## Input
@@ -126,12 +126,12 @@ RFC1 is the case that settles it. Expanded to 500 copies it causes CANVAS with a
 is in the motif, not the length:
 
 ```bash
-$ uv run strchive query --chrom chr4 --pos 39348430 --motif AAGGG --rep-units 500
+$ pixi run strchive query --chrom chr4 --pos 39348430 --motif AAGGG --rep-units 500
 chr4:39348430 AAGGG  ->  pathogenic_expansion
   motif       pathogenic via AAGGG (0 edits)
   estimate    11.8 ref + 500 inserted = 511.8 copies -> pathogenic
 
-$ uv run strchive query --chrom chr4 --pos 39348430 --motif AAAAG --rep-units 500
+$ pixi run strchive query --chrom chr4 --pos 39348430 --motif AAAAG --rep-units 500
 chr4:39348430 AAAAG  ->  locus_known_motif
   motif       reference via AAAAG (0 edits)
   estimate    11.8 ref + 500 inserted = 511.8 copies -> pathogenic
@@ -281,7 +281,7 @@ comparable and are not. Everything catalogue-shaped stays separate; see the
 `trcore` docstring for why the two `catalog.py` modules were *not* merged.
 
 ```bash
-uv run pytest tests/python/strchive tests/python/trcore
+pixi run pytest tests/python/strchive tests/python/trcore
 ```
 
 Tests never touch the network: they run against five real STRchive records

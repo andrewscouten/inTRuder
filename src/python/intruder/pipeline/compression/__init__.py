@@ -5,5 +5,5 @@ zlib-compressed bytes is a cheap proxy for "is this insertion a tandem repeat?"
 -- the idea behind superSTR. The step reads a VCF and writes the same VCF with
 an ``SVCOMP`` INFO field per ALT allele.
 
-    compression.annotate   the `uv run compression` command line
+    compression.annotate   the `pixi run compression` command line
 """

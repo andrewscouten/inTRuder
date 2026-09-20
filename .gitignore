@@ -103,12 +103,6 @@ ipython_config.py
 #   install all needed dependencies.
 # Pipfile.lock
 
-# UV
-#   Similar to Pipfile.lock, it is generally recommended to include uv.lock in version control.
-#   This is especially recommended for binary packages to ensure reproducibility, and is more
-#   commonly ignored for libraries.
-# uv.lock
-
 # poetry
 #   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
 #   This is especially recommended for binary packages to ensure reproducibility, and is more
@@ -276,7 +270,7 @@ po/*~
 rsconnect/
 
 # Reference TR catalogues downloaded from UCSC / TRExplorer / STRchive, and the
-# index caches built beside them (30 MB+ blobs that `uv run novelty` and
+# index caches built beside them (30 MB+ blobs that `pixi run novelty` and
 # `python -m strchive` re-fetch on demand, so they should not land in a commit)
 data/reference/
 
@@ -291,7 +285,7 @@ data/reference/
 data/dx/
 
 # Fetched reference catalogs for the web layer. Regenerate with
-# `cd backend && uv run python scripts/fetch_strchive.py`. The manifest that
+# `pixi run strchive-data`. The manifest that
 # describes this file IS committed (data/web/strchive-loci.yaml); the data is a
 # pinned, checksummed download, so it is not.
 data/web/strchive/
@@ -309,7 +303,7 @@ data/web/strchive/
 # unrelated genomes) and trio (GIAB HG002/03/04). The manifests that describe
 # them ARE committed (data/web/hprc-*.yaml, data/web/trio-*.yaml); the data is
 # somebody else's cohort, so it is fetched and rebuilt rather than cloned:
-#   just plot-data && just plot-parquet && just strchive-data && just web-data
+#   pixi run plot-data && pixi run plot-parquet && pixi run strchive-data && pixi run web-data
 # See data/web/README.md for what each step is for.
 data/web/hprc_multisample.trf.noveltyFiltered.tsv
 data/hprc/

@@ -1,4 +1,4 @@
-"""Cache placement and downloading -- run with `uv run pytest`.
+"""Cache placement and downloading -- run with `pixi run test-pipeline`.
 
 Nothing here touches the network: the two entry points are exercised against a
 stubbed ``urllib`` so the TLS-failure path, which is the whole reason this code

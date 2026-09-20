@@ -1,7 +1,7 @@
 """Step-by-step tests for the phenotype-to-loci pipeline.
 
-Needs the Step 2A index built first (`uv run python scripts/build_hpo_index.py`)
-and the Step 5 dataset fetched (`uv run python scripts/fetch_hpo.py`) — both are
+Needs the Step 2A index built first (`pixi run hpo-index`)
+and the Step 5 dataset fetched (`pixi run hpo-data`) — both are
 one-time setup, not part of the request path, so they are not built by these
 tests. Run with `-s` to see the printed output at each step.
 """

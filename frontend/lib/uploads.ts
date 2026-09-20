@@ -7,8 +7,8 @@ import type { Dataset, DatasetRole, Upload, UploadListing } from "./types";
  * The browser posts to the backend directly — `NEXT_PUBLIC_API_BASE` is the URL
  * *your browser* resolves, never a container name — so the file never passes
  * through Next.js. That is what makes uploading behave identically under
- * `just dev` and under Docker: there is no proxy in the middle with its own body
- * limit, and nothing here has to know which one it is running in.
+ * `pixi run dev` and under Docker: there is no proxy in the middle with its own
+ * body limit, and nothing here has to know which one it is running in.
  */
 
 /** What the server said went wrong, rather than a bare status code. */

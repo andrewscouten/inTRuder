@@ -7,7 +7,7 @@ from `PyHPO`'s `Ontology` object (every term's name and synonyms) using the same
 request time — Step 2B's cosine similarity is only meaningful if both sides came
 from the same model.
 
-    cd backend && uv run python scripts/build_hpo_index.py
+    pixi run hpo-index
 
 Only needs re-running when the HPO version bundled with the installed `pyhpo`
 changes, or the embedding model changes — not on every pipeline run, so this is

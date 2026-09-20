@@ -79,7 +79,7 @@ def _load_index() -> _Index:
     if not _INDEX_PATH.exists():
         raise FileNotFoundError(
             f"HPO term index not found at {_INDEX_PATH}. Build it once with: "
-            "cd backend && uv run python scripts/build_hpo_index.py"
+            "pixi run hpo-index"
         )
     data = np.load(_INDEX_PATH, allow_pickle=True)
     return _Index(ids=data["ids"], names=data["names"], vectors=data["vectors"])

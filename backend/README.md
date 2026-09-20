@@ -3,20 +3,22 @@
 FastAPI service backing the web interface: a DuckDB-backed data API for the
 visualizations, and a LangGraph agent streamed over server-sent events.
 
-This is a **standalone uv project**. It deliberately does not share a lockfile or
-an environment with the repository root, which manages the research pipeline
-under `src/python`. Two separate dependency sets, two `.venv`s.
+This is a **standalone pixi environment** (`backend`, declared in the
+repository's `pyproject.toml`). It deliberately shares nothing — not a Python, not a package —
+with the environments that run the research pipeline under `src/python`.
 
 ## Setup
 
 ```bash
-cd backend
-uv sync                                   # creates backend/.venv
-cp .env.example .env                      # then add a model credential
-uv run python scripts/make_demo_data.py   # writes data/web/demo/*.parquet
-uv run python scripts/fetch_strchive.py   # writes data/web/strchive/loci.parquet
-uv run uvicorn app.main:app --reload
+pixi install -e backend      # its own Python and dependencies
+cp .env.example backend/.env # then add a model credential
+pixi run demo-data           # writes data/web/demo/*.parquet
+pixi run strchive-data       # writes data/web/strchive/loci.parquet
+pixi run backend
 ```
+
+Every task below runs from anywhere in the repository: they set their own working
+directory, so nothing needs `cd backend` first.
 
 The API comes up on <http://localhost:8000>. Interactive docs at `/docs`.
 
@@ -32,10 +34,10 @@ to run one.
 | `LLM_PROVIDER` | Default model | Credential | Install |
 |---|---|---|---|
 | `anthropic` | `claude-opus-5` | `ANTHROPIC_API_KEY` | included |
-| `claude-code` | the CLI's own | none — the Claude Code login | `uv add claude-agent-sdk` (bundles the CLI) |
-| `google` | `gemini-2.5-pro` | `GOOGLE_API_KEY` | `uv add langchain-google-genai` |
-| `ollama` | `llama3.1` | none (local) | `uv add langchain-ollama` |
-| `openai` | `gpt-4o` | `OPENAI_API_KEY` | `uv add langchain-openai` |
+| `claude-code` | the CLI's own | none — the Claude Code login | `pixi add --pypi claude-agent-sdk` (bundles the CLI) |
+| `google` | `gemini-2.5-pro` | `GOOGLE_API_KEY` | `pixi add --pypi langchain-google-genai` |
+| `ollama` | `llama3.1` | none (local) | `pixi add --pypi langchain-ollama` |
+| `openai` | `gpt-4o` | `OPENAI_API_KEY` | `pixi add --pypi langchain-openai` |
 
 The Anthropic path is the tuned one: adaptive thinking with a summarized display
 (the default emits empty thinking blocks, which reads as a long pause), effort via
@@ -52,10 +54,10 @@ key of your own.
 
 ```bash
 cd backend
-uv add claude-agent-sdk    # ships its own CLI binary — no separate install needed
+pixi add --feature backend --pypi claude-agent-sdk   # ships its own CLI binary
 claude                     # once, to sign in — then quit it
 echo "LLM_PROVIDER=claude-code" >> .env
-uv run uvicorn app.main:app --reload
+pixi run backend
 ```
 
 The SDK bundles a Claude Code binary, so the package is the whole install. What
@@ -66,7 +68,7 @@ normal.
 
 On an Intel Mac the SDK's transitive `cryptography` dependency has no wheel above
 48.x for `macosx_x86_64` and will try to build from source; pin it in the same
-command to stay on a prebuilt one: `uv add claude-agent-sdk 'cryptography<49'`.
+command to stay on a prebuilt one: `pixi add --pypi claude-agent-sdk 'cryptography<49'`.
 
 Ask a question in the web UI. Nothing else changes: the same tools, the same
 system prompt, the same streamed text, reasoning and `set_view` events, so the
@@ -96,7 +98,7 @@ text on each turn rather than resumed as a Claude Code session, which is what th
 LangGraph path does too.
 
 **When it does not work.** Every failure arrives as an error message in the chat
-pane rather than a traceback: the SDK not installed says `uv add claude-agent-sdk`,
+pane rather than a traceback: the SDK not installed says `pixi add --pypi claude-agent-sdk`,
 a missing CLI says where to get it, and a signed-out CLI says to run `claude`.
 
 ## Layout
@@ -370,9 +372,9 @@ switch to views for multi-GB inputs and re-do step 3 accordingly.
 ## Development
 
 ```bash
-uv run ruff check app scripts tests
-uv run pytest                 # offline; the network canaries are deselected
-uv run pytest -m network      # the two that call Europe PMC
+pixi run lint-backend                 # ruff over app/ and scripts/
+pixi run test-backend                 # offline; the network canaries are deselected
+pixi run test-backend -m network      # the two that call Europe PMC
 ```
 
 The `network` canaries assert that the Europe PMC quirks `app/util/europepmc.py`
@@ -387,5 +389,5 @@ reporting anything.
 To read a VCF outside the API:
 
 ```bash
-uv run python -m app.util.vcf ../data/sv_output/sniffles/raw/HG00290.raw.sniffles.vcf
+pixi run -e backend python -m app.util.vcf ../data/sv_output/sniffles/raw/HG00290.raw.sniffles.vcf
 ```

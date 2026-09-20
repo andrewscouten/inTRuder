@@ -10,8 +10,7 @@
 # dataset registry is bind-mounted at runtime, which is what lets someone drop
 # in their own callset without rebuilding. See docker/README.md.
 
-ARG PYTHON_VERSION=3.13
-ARG UV_VERSION=0.9
+ARG PIXI_VERSION=0.78.0
 
 # Who the service runs as. Uploads are written into the bind-mounted ./data, so
 # on Linux — where bind-mount ownership is NOT virtualized the way it is under
@@ -24,32 +23,30 @@ ARG GID=10001
 
 
 # --------------------------------------------------------------------------- #
-# Builder — resolve the locked dependency set into a self-contained venv.
+# Builder — materialize the locked `backend` environment, Python included.
 # --------------------------------------------------------------------------- #
-FROM ghcr.io/astral-sh/uv:${UV_VERSION}-python${PYTHON_VERSION}-bookworm-slim AS builder
-
-ENV UV_COMPILE_BYTECODE=1 \
-    UV_LINK_MODE=copy \
-    UV_PYTHON_DOWNLOADS=never
+FROM ghcr.io/prefix-dev/pixi:${PIXI_VERSION}-bookworm-slim AS builder
 
 WORKDIR /app
 
-# Only the lockfile and the project metadata, so this layer is cached across
-# every source edit. `package = false` in backend/pyproject.toml means the
-# project itself is never built — only its dependencies are installed.
-COPY backend/pyproject.toml backend/uv.lock backend/README.md ./
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-install-project
+# Only the two manifests, so this layer is cached across every source edit.
+# `backend` is a standalone environment in the workspace (see pyproject.toml): it
+# brings its own Python and shares nothing with the pipeline, and no project of
+# ours is built into it — `app` is imported from the source copied in below.
+COPY pyproject.toml pixi.lock README.md ./
+RUN --mount=type=cache,target=/root/.cache/rattler \
+    --mount=type=cache,target=/root/.cache/uv \
+    pixi install --locked --environment backend
 
 
 # --------------------------------------------------------------------------- #
-# Runtime — the venv plus the application source, nothing else.
+# Runtime — the environment plus the application source, nothing else.
 # --------------------------------------------------------------------------- #
-FROM python:${PYTHON_VERSION}-slim-bookworm AS runtime
+FROM debian:bookworm-slim AS runtime
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PATH="/app/.venv/bin:${PATH}" \
+    PATH="/app/.pixi/envs/backend/bin:${PATH}" \
     INTRUDER_DATA_DIR=/data \
     INTRUDER_REGISTRY_DIR=/data/web
 
@@ -63,7 +60,9 @@ RUN groupadd --gid ${GID} intruder 2>/dev/null || true \
 
 WORKDIR /app
 
-COPY --from=builder --chown=intruder:intruder /app/.venv ./.venv
+# The environment is copied to the same absolute path it was built at: a conda
+# environment records its own prefix, so moving it elsewhere would break it.
+COPY --from=builder --chown=intruder:intruder /app/.pixi/envs/backend ./.pixi/envs/backend
 COPY --chown=intruder:intruder backend/app ./app
 COPY --chown=intruder:intruder backend/scripts ./scripts
 

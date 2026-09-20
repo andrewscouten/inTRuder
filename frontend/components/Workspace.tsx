@@ -525,7 +525,7 @@ function WorkspaceInner() {
             <>
               Cannot reach the API — {error.message}. Start it with:{" "}
               <span className="tabular">
-                cd backend &amp;&amp; uv run uvicorn app.main:app --reload
+                pixi run backend
               </span>
             </>
           )}

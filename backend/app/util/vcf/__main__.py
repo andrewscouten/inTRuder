@@ -1,6 +1,6 @@
 """Read a VCF and print the report, for checking this package against a real file.
 
-    uv run python -m app.util.vcf ../data/sv_output/sniffles/raw/HG00290.raw.sniffles.vcf
+    pixi run -e backend python -m app.util.vcf ../data/sv_output/sniffles/raw/HG00290.raw.sniffles.vcf
 """
 
 from __future__ import annotations

@@ -1,22 +1,22 @@
 """Command line for screening SV-insertion tandem repeats against a reference.
 
-``uv sync`` installs this as the ``novelty`` command, runnable from anywhere in
+``pixi install`` installs this as the ``novelty`` command, runnable from anywhere in
 the repo; ``python -m intruder.pipeline.novelty`` from ``src/python`` is the same program without
 installing anything. Paths below are relative to the repo root.
 
     # what can we screen against?
-    uv run novelty platforms
+    pixi run novelty platforms
 
     # one locus
-    uv run novelty query --chrom chr1 --pos 10772 --motif GC
+    pixi run novelty query --chrom chr1 --pos 10772 --motif GC
 
     # the whole sv_trfcaller.py table, against both catalogues
-    uv run novelty --platform ucsc,trexplorer annotate \\
+    pixi run novelty --platform ucsc,trexplorer annotate \\
         data/sv_output/survivor_multi_sample_vcf/first_500_INS.trf.tsv \\
         data/sv_output/survivor_multi_sample_vcf/first_500_INS.novelty.tsv
 
     # how sensitive is the answer to the thresholds?
-    uv run novelty --platform ucsc,trexplorer sweep \\
+    pixi run novelty --platform ucsc,trexplorer sweep \\
         data/sv_output/survivor_multi_sample_vcf/first_500_INS.trf.tsv \\
         data/sv_output/survivor_multi_sample_vcf/first_500_INS.sweep.tsv \\
         --window 0,1,10 --max-motif-edits 0,1,2 --min-purity none,0.8

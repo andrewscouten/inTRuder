@@ -223,7 +223,7 @@ if [ "$LINK_WEB" = 1 ] && [ -f "${DEST}/${WEB_SOURCE}" ] && [ ! -f "$WEB_TARGET"
         cp "${DEST}/${WEB_SOURCE}" "$WEB_TARGET"
         say "copied ${WEB_SOURCE} -> data/web/$(basename "$WEB_TARGET")"
     fi
-    say "  build the web tables with: just strchive-data && just hprc-data"
+    say "  build the web tables with: pixi run strchive-data && pixi run web-data hprc"
 fi
 
 say "done: ${fetched} fetched, ${present} already present, in ${DEST}"

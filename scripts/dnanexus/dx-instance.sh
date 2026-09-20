@@ -43,7 +43,7 @@ BRANCH="${BRANCH:-$(git -C "$REPO" rev-parse --abbrev-ref HEAD 2>/dev/null)}"
 [ -n "$BRANCH" ] && [ "$BRANCH" != "HEAD" ] || BRANCH=main
 REPO_URL="${REPO_URL:-https://github.com/collaborativebioinformatics/inTRuder.git}"
 REPO_DIR="${REPO_DIR:-/home/dnanexus/inTRuder}"
-# Extra flags for the worker's `uv sync`. The setup script has always taken
+# Extra flags for the worker's `pixi install`. The setup script has always taken
 # this; until now nothing passed it, so the documented knob did nothing on the
 # only path anyone uses.
 SYNC_ARGS="${SYNC_ARGS:-}"
@@ -110,9 +110,10 @@ Options:
   -b, --branch BRANCH     branch the worker clones     [your current branch]
       --setup SCRIPT      environment build to run on the worker
                           [scripts/dnanexus/dx-worker-setup.sh]
-      --sync-args ARGS    extra flags for the worker's `uv sync`, as one
-                          argument, e.g. --sync-args "--group dx"      [none]
-      --no-setup          leave the box as it boots: no clone, no uv, no venv
+      --sync-args ARGS    extra flags for the worker's `pixi install`, as one
+                          argument, e.g. --sync-args "-e dx"          [none]
+      --no-setup          leave the box as it boots: no clone, no pixi, no
+                          environment
       --run NAME          name for this run, used in the default paths
       --job JOB-ID        attach to a job that is already running instead of
                           launching one. Implies --keep unless --terminate.
@@ -133,9 +134,9 @@ Options:
 Everything after `--` (or after the last option) is the command. It is joined
 with spaces and handed to a login bash on the worker, exactly as ssh does, so
 pipes and redirections work and arguments containing spaces need quoting twice.
-It runs in the checkout with the project venv first on PATH, so `novelty` and
-`python -m ...` resolve there -- avoid `uv run` on the worker, which resyncs to
-uv.lock and would uninstall anything you installed on top of it.
+It runs in the checkout with the project environment first on PATH, so
+`novelty` and `python -m ...` resolve there -- avoid `pixi run` on the worker,
+which reinstalls from pixi.lock and would uninstall anything you put on top.
 
 Examples:
   # a shell on a CPU box for an hour, with a VCF staged onto it
@@ -236,19 +237,20 @@ if [ -n "$SETUP" ]; then
         /*) ;;
         *) die "REPO_DIR '$REPO_DIR' must be absolute -- the worker cd's to it from \$HOME" ;;
     esac
-    # `uv sync` flags, not a bare word: --sync-args "dx" is a plausible typo for
-    # --sync-args "--group dx" and uv would reject it an environment build later.
+    # `pixi install` flags, not a bare word: --sync-args "dx" is a plausible typo
+    # for --sync-args "-e dx", and pixi would only reject it an environment
+    # build later.
     case "${SYNC_ARGS:--}" in
         -*) ;;
-        *) die "--sync-args '$SYNC_ARGS': expected uv sync flags, e.g. '--group dx'" ;;
+        *) die "--sync-args '$SYNC_ARGS': expected pixi install flags, e.g. '-e dx'" ;;
     esac
 fi
 : "${OUTPUT_DIR:=$REPO/data/dx/$RUN}"
 
 # --- platform plumbing --------------------------------------------------------
-# Always `uv run dx`: .venv/bin is not on PATH, so a bare `dx` gives
-# "command not found" even when dxpy is correctly installed.
-DX=(uv run dx)
+# Always `pixi run -e dx dx`: the environment's bin/ is not on PATH, so a bare
+# `dx` gives "command not found" even when dxpy is correctly installed.
+DX=(pixi run -e dx dx)
 
 dx_do() {
     if [ "$DRY" = 1 ]; then echo "+ dx $*" >&2; return 0; fi
@@ -271,7 +273,7 @@ PROJECT="${DX_PROJECT_CONTEXT_ID:?dx-env.sh did not pin a project}"
 # nothing was billed): 97 were accepted and one was refused. The refusal is
 # annotated below -- the catalog is the entitlement, but not quite the last word.
 if [ "$LIST" = 1 ]; then
-    uv run --group dx --no-sync python - \
+    pixi run -e dx python - \
         "$PROJECT" "$LIST_FILTER" "$INSTANCE" "$GPU_INSTANCE" <<'PYLIST'
 import re
 import sys
@@ -371,7 +373,7 @@ fi
 # real money to discover.
 if [ "$ATTACHED" = 0 ]; then
     [ -f "$HOME/.dnanexus_config/ssh_id" ] \
-        || die "no SSH key pair. Run 'uv run dx ssh_config' once, then retry.
+        || die "no SSH key pair. Run 'pixi run -e dx dx ssh_config' once, then retry.
        Without it the worker boots, starts billing, and only then refuses you."
 fi
 
@@ -435,11 +437,11 @@ cleanup() {
             log "terminated. Billing stopped."
         else
             warn "state is '${state:-unknown}', not 'terminated'. STILL BILLING --"
-            warn "  check with: uv run dx describe $JOB | grep ^State"
+            warn "  check with: pixi run -e dx dx describe $JOB | grep ^State"
         fi
     elif [ -n "$JOB" ] && [ "$DRY" = 0 ]; then
         warn "$JOB left running and BILLING until $TIME elapses."
-        warn "  stop it with: uv run dx terminate $JOB"
+        warn "  stop it with: pixi run -e dx dx terminate $JOB"
     fi
     exit "$rc"
 }
@@ -518,7 +520,7 @@ if [ "$DRY" = 0 ]; then
         sed 's/^/  | /' "$ssh_log" >&2
         rm -f "$ssh_log"
         die "ssh never came up after $((SSH_TRIES * SSH_WAIT / 60)) min. The job is
-       running and billing; try 'uv run dx ssh $JOB' by hand, or terminate it.
+       running and billing; try 'pixi run -e dx dx ssh $JOB' by hand, or terminate it.
        Raise SSH_TRIES if the box is simply slow today."
     fi
     rm -f "$ssh_log"
@@ -577,7 +579,7 @@ if [ -n "$SETUP" ]; then
             # fixing the environment by hand is exactly what a shell is for.
             if [ ${#COMMAND[@]} -gt 0 ]; then
                 die "environment build failed; the box is still up, attach with:
-       uv run dx ssh $JOB"
+       pixi run -e dx dx ssh $JOB"
             fi
             warn "environment build failed -- opening the shell anyway."
         fi
@@ -589,12 +591,12 @@ fi
 if [ ${#COMMAND[@]} -gt 0 ]; then
     log "running the command ..."
     remote <<EOF || die "the command failed. The box is still up until this script
-       exits; attach with 'uv run dx ssh $JOB' to look at it."
+       exits; attach with 'pixi run -e dx dx ssh $JOB' to look at it."
 set -uo pipefail
 export OUT="$REMOTE_OUT"
 mkdir -p "\$OUT" || exit 1
 # The checkout and its venv if setup built them; \$HOME if it did not.
-[ -d "$REPO_DIR/.venv/bin" ] && export PATH="$REPO_DIR/.venv/bin:\$PATH"
+[ -d "$REPO_DIR/.pixi/envs/default/bin" ] && export PATH="$REPO_DIR/.pixi/envs/default/bin:\$PATH"
 cd "$REPO_DIR" 2>/dev/null || cd /home/dnanexus || exit 1
 echo "[worker] \$(nvidia-smi --query-gpu=name,memory.total --format=csv,noheader 2>/dev/null || echo 'cpu only')"
 echo "[worker] cwd \$PWD, OUT=\$OUT"
@@ -607,8 +609,9 @@ fi
 # Before the fetch, not after: whatever you make in here is in $OUT too, and
 # comes home with everything else.
 if [ ${#COMMAND[@]} -eq 0 ] || [ "$SHELL_AFTER" = 1 ]; then
-    [ -n "$SETUP" ] && log "opening a shell. The repo is at $REPO_DIR; use .venv/bin/... rather"
-    [ -n "$SETUP" ] && log "  than 'uv run', which resyncs and undoes anything you pip-installed."
+    [ -n "$SETUP" ] && log "opening a shell. The repo is at $REPO_DIR; use"
+    [ -n "$SETUP" ] && log "  .pixi/envs/default/bin/... rather than 'pixi run', which reinstalls"
+    [ -n "$SETUP" ] && log "  and undoes anything you pip-installed."
     log "\$OUT is $REMOTE_OUT -- anything you leave there is fetched when you exit."
     log "Exiting TERMINATES the box. Answer 'n' to dx's own prompt on the way"
     log "  out -- this script does the terminating, and confirms it."
@@ -667,7 +670,7 @@ else
                 && ls -lh "$OUTPUT_DIR" >&2
         else
             warn "download failed, but the results are safe on the platform:"
-            warn "  uv run dx download -r $PROJECT:$DESTINATION"
+            warn "  pixi run -e dx dx download -r $PROJECT:$DESTINATION"
         fi
         rm -rf "$staging"
     fi

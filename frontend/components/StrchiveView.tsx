@@ -479,7 +479,7 @@ export function StrchiveView() {
         <p className="text-sm text-ink">The disease-locus catalog is not loaded.</p>
         <p className="mt-1 text-xs text-ink-muted">{error}</p>
         <p className="tabular mt-3 text-xs text-ink-secondary">
-          cd backend &amp;&amp; uv run python scripts/fetch_strchive.py
+          cd backend &amp;&amp; pixi run strchive-data
         </p>
       </div>
     );

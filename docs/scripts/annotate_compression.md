@@ -8,24 +8,24 @@ Simply tests how compressible the insertion sequences are - the more they are co
 
 The code is `src/python/intruder/pipeline/compression/annotate.py`, installed as the
 `compression` console script. Everything it imports — python3, pysam, zlib, argparse,
-pandas — is already in the project's runtime dependencies, so `uv sync` is the whole
+pandas — is already in the project's runtime dependencies, so `pixi install` is the whole
 setup:
 
 ```
-uv sync
+pixi install
 ```
 
 `tr_annotation_env.yml` in this directory is the author's original conda environment.
 It is kept as a record of the *non-Python* toolchain used alongside the annotator —
-`bcftools` and `htslib` for wrangling the VCFs — which uv does not manage. It is not
-needed to run this step, and its pinned build strings are macOS-arm64 only.
+`bcftools` and `htslib` for wrangling the VCFs, which this step does not call itself.
+It is not needed to run the annotator, and its pinned build strings are macOS-arm64 only.
 
 ```
-$ uv run compression -h
+$ pixi run compression -h
 
 usage: compression [-h] --input INPUT --output OUTPUT
 
-Annotate VCF with INFO fields eg. uv run compression -i HG00320.merged.sniffles.vcf -o HG00320.merged.sniffles_annotated.vcf
+Annotate VCF with INFO fields eg. pixi run compression -i HG00320.merged.sniffles.vcf -o HG00320.merged.sniffles_annotated.vcf
 
 options:
   -h, --help           show this help message and exit
@@ -37,7 +37,7 @@ options:
 
 Input is 106844 variants, 243Mb uncompressed
 ```
-time uv run compression -i hprc_multisample.INS.vcf -o hprc_multisample.INS_comp.vcf
+time pixi run compression -i hprc_multisample.INS.vcf -o hprc_multisample.INS_comp.vcf
 
 real    0m10.150s
 user    0m7.397s

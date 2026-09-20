@@ -1,9 +1,11 @@
-# Kept for the record, not required. The project is managed with uv, and every
-# Python package the compression annotator imports (python, pysam, zlib,
-# argparse) is already in the root pyproject.toml -- `uv sync` covers the step.
-# What uv does not cover is the non-Python toolchain pinned here, bcftools and
-# htslib, used alongside it for VCF wrangling. The build strings below are
-# macOS-arm64 only, so this will not solve on Linux. See annotate_compression.md.
+# Kept for the record, not required. Every Python package the compression
+# annotator imports (python, pysam, zlib, argparse) is already in the root
+# pyproject.toml -- `pixi install` covers the step. What this file adds is the
+# non-Python toolchain used alongside it for VCF wrangling, bcftools and htslib;
+# both are conda packages, so `pixi add bcftools htslib` would cover them too if
+# a step ever needs them in the environment rather than on your own PATH. The
+# build strings below are macOS-arm64 only, so this will not solve on Linux.
+# See annotate_compression.md.
 name: tr_annotation
 channels:
   - bioconda

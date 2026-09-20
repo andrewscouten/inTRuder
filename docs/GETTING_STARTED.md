@@ -5,10 +5,9 @@ Nextflow and as standalone commands.
 
 ## Prerequisites
 
-- [uv](https://docs.astral.sh/uv/) — manages both the pipeline and backend Python environments
-- Node.js 20+ — for the frontend
-- [`just`](https://github.com/casey/just) — task runner; every command below is also a `just`
-  recipe. Run `just` on its own to list them all.
+- [pixi](https://pixi.sh) — manages every environment in the repo, Python and Node included
+- Nothing else: Node comes from the `frontend` environment, and every command below is a pixi
+  task. Run `pixi task list` to see them all.
 - [Docker](https://docs.docker.com/get-docker/) — only needed for the containerized setup or for
   running the Nextflow pipeline
 
@@ -17,17 +16,17 @@ Nextflow and as standalone commands.
 ```bash
 git clone https://github.com/collaborativebioinformatics/inTRuder.git
 cd inTRuder
-just setup     # uv sync for the pipeline, uv sync + npm install for the web app,
-               # plus the synthetic demo dataset the interface opens on
+pixi run setup     # every environment, plus npm install for the web app and the
+                   # synthetic demo dataset the interface opens on
 ```
 
-`just setup` also copies `backend/.env.example` to `backend/.env` — add a model credential there
+`pixi run setup` also copies `backend/.env.example` to `backend/.env` — add a model credential there
 to enable chat in the web interface. Skip this step entirely if you only want the containers.
 
 ## 2. Run the web interface
 
 ```bash
-just dev       # backend on :8000, frontend on :3000
+pixi run dev       # backend on :8000, frontend on :3000
 ```
 
 Or in containers, with no toolchain to install:
@@ -36,8 +35,8 @@ Or in containers, with no toolchain to install:
 docker compose up --build      # same two ports; your data/ is bind-mounted, not baked in
 ```
 
-Either way, open [http://localhost:3000](http://localhost:3000). `just backend` and
-`just frontend` run the two halves on their own. Backend internals — model providers, the agent's
+Either way, open [http://localhost:3000](http://localhost:3000). `pixi run backend` and
+`pixi run frontend` run the two halves on their own. Backend internals — model providers, the agent's
 tools, the SQL sandbox — are covered in [`backend/README.md`](../backend/README.md).
 
 ## 3. Run the pipeline
@@ -71,8 +70,8 @@ placeholders is tracked in the
 Each step is also a standalone CLI, file in and file out, so nothing forces you through Nextflow:
 
 ```bash
-uv run svpytrf -i multisample.vcf -o trf.tsv                    # 01  TRs inside inserted alleles
-uv run novelty --platform ucsc,trexplorer annotate trf.tsv trf.novelty.tsv   # 02  known or novel?
+pixi run svpytrf -i multisample.vcf -o trf.tsv                    # 01  TRs inside inserted alleles
+pixi run novelty --platform ucsc,trexplorer annotate trf.tsv trf.novelty.tsv   # 02  known or novel?
 ```
 
 See the [Novelty screen](tools/NOVELTY_SCREEN.md) and [STRchive comparison](tools/STRCHIVE_COMPARE.md)
@@ -81,7 +80,7 @@ full pipeline write-up.
 
 ## Other environments
 
-- [Python source](../src/python/README.md) — uv-managed environment, adding dependencies, running
+- [Python source](../src/python/README.md) — pixi environments, adding dependencies, running
   scripts, linting and tests
 - [R source](../src/R/README.md) — renv-managed environment, `renv::restore()`, snapshotting new
   packages

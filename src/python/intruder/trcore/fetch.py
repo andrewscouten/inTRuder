@@ -39,7 +39,7 @@ CACHE_SUBDIR = ("data", "reference")
 def cache_root(fallback: str, *, env_var: str | None = None) -> Path:
     """Where downloaded catalogues live, resolved at call time.
 
-    Inside a checkout (including the editable install ``uv sync`` makes) that is
+    Inside a checkout (including the editable install ``pixi install`` makes) that is
     the repo's own ``data/reference/``, so the files sit with the rest of the
     data. Installed anywhere else there is no repo to write into, so it falls
     back to ``<user cache>/<fallback>``. ``env_var``, when set, overrides both.

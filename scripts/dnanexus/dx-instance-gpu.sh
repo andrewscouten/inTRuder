@@ -4,7 +4,7 @@
 #
 #     scripts/dnanexus/dx-instance-gpu.sh                    # a shell, for 2h at most
 #     scripts/dnanexus/dx-instance-gpu.sh --time 4h
-#     scripts/dnanexus/dx-instance-gpu.sh --sync-args "--group dx"
+#     scripts/dnanexus/dx-instance-gpu.sh --sync-args "-e dx"
 #
 # The box is mem2_ssd2_gpu1_v2_x8 -- one L4 with 24 GB, 8 cores -- unless you
 # pass -i or set DX_GPU_INSTANCE. It is one of only two GPU types this project

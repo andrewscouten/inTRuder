@@ -163,7 +163,7 @@ def _loci_table() -> str:
         raise HTTPException(
             status_code=503,
             detail="No candidate-locus dataset is available. Generate the demo "
-                   "fixtures with `cd backend && uv run python "
+                   "fixtures with `cd backend && pixi run python "
                    "scripts/make_demo_data.py`, upload a locus table and "
                    "register it with role 'loci', or switch one back on from the "
                    "Datasets page.",
@@ -774,7 +774,7 @@ def _require_strchive() -> None:
         raise HTTPException(
             status_code=503,
             detail="The 'strchive_loci' dataset is not available. Run: "
-                   "cd backend && uv run python scripts/fetch_strchive.py",
+                   "pixi run strchive-data",
         )
 
 
