@@ -3,7 +3,7 @@
 These run against the committed synthetic demo dataset, so they need no
 credentials and no external data. Generate it first if it is missing:
 
-    uv run python scripts/make_demo_data.py
+    pixi run demo-data
 """
 
 from __future__ import annotations

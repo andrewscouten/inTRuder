@@ -1,49 +1,36 @@
 # Minimal environment for the novel TR pipeline's Python-based processes.
-# Extend this as new steps (samtools, minimap2, etc.) get added.
+# Extend this as new steps (samtools, minimap2, etc.) get added -- a tool with a
+# bioconda package is one line in pyproject.toml rather than a second package
+# manager in here.
 
-FROM python:3.11-slim
+# Pinned for reproducible builds. The image ships pixi and nothing else of note.
+FROM ghcr.io/prefix-dev/pixi:0.78.0-bookworm-slim
 
-# System-level build tools some Python packages need to compile against
-# - autoconf/automake/libtool/pkg-config: needed by parasail's C build
-# - zlib1g-dev/libbz2-dev/liblzma-dev/libcurl4-openssl-dev: needed by
-#   cyvcf2, which wraps htslib and compiles against these
-# - procps: provides `ps`, which Nextflow needs from inside the
-#   container to collect task resource metrics
+# procps provides `ps`, which Nextflow needs from inside the container to
+# collect task resource metrics. Everything else the pipeline used to compile
+# against -- htslib for cyvcf2, the autotools chain for parasail -- now arrives
+# prebuilt from conda, so no build toolchain is installed here at all.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    autoconf \
-    automake \
-    libtool \
-    pkg-config \
-    zlib1g-dev \
-    libbz2-dev \
-    liblzma-dev \
-    libcurl4-openssl-dev \
     procps \
     && rm -rf /var/lib/apt/lists/*
 
-# --- uv setup ---
-# Pinned to 0.12.6 (released 2026-08-25) for reproducible builds
-COPY --from=ghcr.io/astral-sh/uv:0.12.6 /uv /uvx /bin/
-
-# Install directly into the system Python (no venv) - keeps this a
-# simple single-purpose container.
-ENV UV_PROJECT_ENVIRONMENT=/usr/local
-
 WORKDIR /app
 
-# The real pyproject.toml + uv.lock already exist in the repo (built by
-# a teammate) - copy both so `uv sync --locked` installs the EXACT
-# pinned versions already resolved, not a fresh re-resolution.
-   COPY pyproject.toml uv.lock README.md ./
-
-# `intruder` is declared as a real installable package built from
-# src/python (see [tool.uv.build-backend] in pyproject.toml), so the
-# source needs to be present before `uv sync` runs - it's not just
-# installing third-party deps, it's building this project too.
+# pixi.lock pins every package for linux-64 exactly as it is pinned on a
+# contributor's machine; --locked refuses to resolve anything else. pyproject
+# and src/python come along because `intruder` is installed from this directory,
+# not downloaded -- the build is building this project too, not just its
+# dependencies. README.md is there because pyproject.toml declares it.
+COPY pyproject.toml pixi.lock README.md ./
 COPY src/python ./src/python
 
-RUN uv sync --locked
+RUN pixi install --locked --environment default \
+    && pixi clean cache --yes
+
+# The environment on PATH instead of an activation hook: Nextflow runs each
+# process body with its own shell and never sees an ENTRYPOINT, so a container
+# that needs activating is a container whose commands are not found.
+ENV PATH=/app/.pixi/envs/default/bin:$PATH
 
 # Bundle sv_trfcaller.py at a stable, simple path for FIND_TRS to call
 # (in addition to it already being installed as part of the novelty
@@ -79,7 +66,7 @@ ENV NOVELTY_CACHE=/opt/novelty_cache
 # Dummy query forces both catalogs to download and cache now, at build
 # time, rather than on first real use.
 RUN mkdir -p /opt/novelty_cache && \
-    uv run novelty --platform ucsc,trexplorer query --chrom chr1 --pos 1000000 --motif AT
-# More dependencies go in pyproject.toml as later pipeline stages need
-# them - then re-run `uv lock` locally, commit the updated uv.lock, and
-# rebuild.
+    novelty --platform ucsc,trexplorer query --chrom chr1 --pos 1000000 --motif AT
+# More dependencies go in pyproject.toml (or pixi.toml, for a conda one) as
+# later pipeline stages need them - then re-run `pixi lock` locally, commit the
+# updated pixi.lock, and rebuild.

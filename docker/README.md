@@ -11,7 +11,7 @@ docker compose down
 
 | File | Image |
 |---|---|
-| `backend.Dockerfile` | FastAPI + LangGraph + DuckDB (`uv sync --frozen --no-dev`, runs as uid 10001) |
+| `backend.Dockerfile` | FastAPI + LangGraph + DuckDB (`pixi install --locked -e backend`, runs as uid 10001) |
 | `frontend.Dockerfile` | Next.js production build served by `next start` (runs as `node`) |
 | `pipeline.Dockerfile` | Nextflow/DNAnexus pipeline runtime — see [`docs/GETTING_STARTED.md`](../docs/GETTING_STARTED.md) |
 
@@ -88,7 +88,7 @@ against `/data`, so the whole dataset registry is swappable without rebuilding.
 
 Nothing about that path is Docker-specific, which is the point: without a
 container `INTRUDER_DATA_DIR` defaults to the repository's own `data/`, so
-`just dev` puts uploads in the same directory and the feature behaves
+`pixi run dev` puts uploads in the same directory and the feature behaves
 identically. There is no code path that asks which mode it is running in.
 
 By hand, the same thing in three steps:
@@ -171,5 +171,5 @@ These images are production-shaped: the source is baked in and there is no
 reloader. For day-to-day work use the host toolchain, which reloads on save:
 
 ```bash
-just setup && just dev
+pixi run setup && pixi run dev
 ```

@@ -30,24 +30,24 @@ combined verdict.
 ## Quick start
 
 ```bash
-uv sync                                    # once; installs the `novelty` command
+pixi install                                    # once; installs the `novelty` command
 
 # 1. what can I screen against?
-uv run novelty platforms
+pixi run novelty platforms
 
 # 2. check a single locus by hand
-uv run novelty query --chrom chr1 --pos 10772 --motif GC
+pixi run novelty query --chrom chr1 --pos 10772 --motif GC
 
 # 3. screen a whole table against both catalogues
-uv run novelty --platform ucsc,trexplorer annotate in.trf.tsv out.novelty.tsv
+pixi run novelty --platform ucsc,trexplorer annotate in.trf.tsv out.novelty.tsv
 
 # 4. the same, keeping only rows that pass the filters, plus a summary row
-uv run novelty --platform ucsc,trexplorer annotate in.trf.tsv out.tsv \
+pixi run novelty --platform ucsc,trexplorer annotate in.trf.tsv out.tsv \
     --min-purity 0.8 --min-insertion-purity 0.8 --drop-filtered \
     --metrics run.metrics.tsv
 
 # 5. measure how far the result depends on the thresholds
-uv run novelty --platform ucsc,trexplorer sweep in.trf.tsv sweep.tsv \
+pixi run novelty --platform ucsc,trexplorer sweep in.trf.tsv sweep.tsv \
     --window 0,1,10,50 --min-insertion-purity none,0.5,0.8
 ```
 
@@ -415,7 +415,7 @@ not drag pandas into a step that has no need of it.
 | `insertions.py` | insertion purity and the `filter` column |
 | `search.py` | the Optuna search: axes, samplers, objectives |
 | `cli.py` | the four commands, and the table declaring every tunable setting |
-| `tests/python/novelty/`, `tests/python/trcore/` | one test module per source module; `uv run pytest` |
+| `tests/python/novelty/`, `tests/python/trcore/` | one test module per source module; `pixi run pytest` |
 
 Adding a catalogue means a reader plus a registry entry in `platforms.py`. Adding
 a setting means one row in `HYPERPARAMS` in `cli.py`, which wires it into

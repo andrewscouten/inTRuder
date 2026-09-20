@@ -5,7 +5,7 @@ the tandem-repeat loci where a repeat is known to cause human disease — 82 of
 them at the pinned release. This script downloads that catalog, checksums it,
 and writes a flat parquet the registry can serve to the agent as `strchive_loci`.
 
-    cd backend && uv run python scripts/fetch_strchive.py
+    pixi run strchive-data
 
 Why a flat parquet rather than the JSON as-is: STRchive nests motifs, evidence
 and cross-references as lists, and DuckDB list columns are awkward for the SQL

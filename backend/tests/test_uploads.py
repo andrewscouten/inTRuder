@@ -339,7 +339,7 @@ def test_a_file_already_on_disk_can_be_registered_without_copying(client, sandbo
 
 def test_a_relative_link_path_is_read_from_the_data_directory(client, sandbox):
     """Not from the process's working directory, which is `backend/` under
-    `just dev` and `/app` in the container — the same string would find a
+    `pixi run dev` and `/app` in the container — the same string would find a
     different file in each."""
     (sandbox / "data" / "sv_output").mkdir(parents=True)
     (sandbox / "data" / "sv_output" / "merged.vcf").write_bytes(VCF)

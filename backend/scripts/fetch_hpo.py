@@ -6,7 +6,7 @@ versioned join between HPO terms and the genes reported to cause them — Step 5
 straight SQL lookup against this table, once it is registered like any other
 dataset. See `data/web/README.md`.
 
-    cd backend && uv run python scripts/fetch_hpo.py
+    pixi run hpo-data
 
 This is deliberately the twin of `fetch_strchive.py`: pin a release, checksum it,
 write a flat parquet under `data/web/`, and let a manifest register it — no new

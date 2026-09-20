@@ -1,7 +1,7 @@
 # inTRuder
 
 ![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)
-![uv](https://img.shields.io/badge/uv-managed-DE5FE9?logo=uv&logoColor=white)
+![pixi](https://img.shields.io/badge/pixi-managed-F9A03C?logo=condaforge&logoColor=white)
 ![R](https://img.shields.io/badge/R-4.5.2-276DC3?logo=r&logoColor=white)
 ![renv](https://img.shields.io/badge/renv-locked-276DC3?logo=rstudio&logoColor=white)
 ![Nextflow](https://img.shields.io/badge/Nextflow-DSL2-0DC09D?logo=nextflow&logoColor=white)
@@ -70,16 +70,16 @@ the full write-up of each pipeline stage.
 
 ## Getting Started
 
-**Prerequisites:** [uv](https://docs.astral.sh/uv/), Node.js 20+, and
-[`just`](https://github.com/casey/just). Docker if you'd rather skip the toolchain, or if you're
+**Prerequisites:** [pixi](https://pixi.sh) — it brings Python, Node and every
+dependency with it. Docker if you'd rather skip the toolchain, or if you're
 running the Nextflow pipeline.
 
 ```bash
 git clone https://github.com/collaborativebioinformatics/inTRuder.git
 cd inTRuder
-just setup     # uv sync for the pipeline, uv sync + npm install for the web app,
-               # plus the synthetic demo dataset the interface opens on
-just dev       # backend on :8000, frontend on :3000
+pixi run setup     # every environment, plus npm install for the web app and the
+                   # synthetic demo dataset the interface opens on
+pixi run dev       # backend on :8000, frontend on :3000
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
@@ -91,7 +91,7 @@ docker compose up --build
 ```
 
 That's enough to explore the web interface on the bundled demo data. Running the pipeline itself,
-pointing either at your own data, and every `just` recipe are covered in the
+pointing either at your own data, and every task are covered in the
 **[Getting Started guide](docs/GETTING_STARTED.md)**.
 
 ## Web Interface
@@ -176,7 +176,7 @@ tables below cover everything else.
 
 | Document                                             | Contents                                                                                                                                              |
 | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Python source](src/python/README.md)                | uv-managed environment, adding dependencies, running scripts, linting and tests                                                                       |
+| [Python source](src/python/README.md)                | pixi environments, adding dependencies, running scripts, linting and tests                                                                            |
 | [Run programs on DNAnexus](docs/scripts/DNANexus.md) | `scripts/dnanexus/dx-*.sh`: start a machine, get a terminal or run one program on it, then stop the machine. Token setup, options, and instance types |
 | [R source](src/R/README.md)                          | renv-managed environment, `renv::restore()`, snapshotting new packages                                                                                |
 | [Notebooks](notebooks/README.md)                     | Jupyter and R Markdown / Quarto notebooks for exploration and reporting                                                                               |
@@ -187,7 +187,7 @@ tables below cover everything else.
 ```
 inTRuder/
 ├── src/
-│   ├── python/intruder/     # the pipeline, as one installed package (uv-managed)
+│   ├── python/intruder/     # the pipeline, as one installed package
 │   │   ├── trcore/             # shared primitives — coords, motifs, downloads
 │   │   ├── pipeline/           # the steps: trf, novelty, strchive, annotation
 │   │   └── analysis/           # post-hoc analysis of pipeline output
@@ -199,12 +199,12 @@ inTRuder/
 ├── pipelines/               # Nextflow subworkflows and their scripts
 ├── notebooks/               # Jupyter and R Markdown / Quarto notebooks
 ├── frontend/                # Next.js web interface (proof of concept)
-├── backend/                 # FastAPI + LangGraph service (its own uv project)
+├── backend/                 # FastAPI + LangGraph service (its own pixi environment)
 ├── docker/                  # Container images for frontend/backend
 ├── data/                    # Sample lists, SV output, catalogs (mostly gitignored)
 ├── docs/                    # Getting-started guide, data, tool and methods documentation
 ├── tests/python/            # Python tests, mirroring src/python/intruder/
-└── justfile                 # task runner — `just` lists all recipes
+└── pyproject.toml           # the package, plus every pixi environment and task
 ```
 
 Where code goes: Python in `src/python/intruder/`, R in `src/R/`, shell in

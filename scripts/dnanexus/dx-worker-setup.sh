@@ -2,14 +2,14 @@
 # Build this project's environment on a fresh DNAnexus worker (or any bare
 # Ubuntu box). Idempotent -- safe to re-run.
 #
-#     uv run dx ssh "$JOB" -T "bash -s" < scripts/dnanexus/dx-worker-setup.sh
+#     pixi run -e dx dx ssh "$JOB" -T "bash -s" < scripts/dnanexus/dx-worker-setup.sh
 #     BRANCH=main REPO_DIR=. bash scripts/dnanexus/dx-worker-setup.sh
 #         # ... against a checkout you already have
 #
 # `scripts/dnanexus/dx-instance.sh` runs this for you, over stdin, before your
-# command. It installs uv, clones the branch from GitHub -- nothing on a
+# command. It installs pixi, clones the branch from GitHub -- nothing on a
 # workstation survives the session, and the box has no copy of your laptop --
-# and syncs the locked environment into .venv.
+# and builds the locked environment into .pixi/envs.
 #
 # Everything is configured by environment variable, because that is all that
 # survives `dx ssh JOB -T "... bash -s" < this-file`: there is no argv on the
@@ -18,14 +18,15 @@
 #     BRANCH      branch to check out                          [main]
 #     REPO_URL    where to clone it from                        [inTRuder]
 #     REPO_DIR    where to put it                               [$HOME/inTRuder]
-#     SYNC_ARGS   extra flags for `uv sync`, e.g. "--group dx"  [none]
+#     SYNC_ARGS   extra flags for `pixi install`, e.g. "-e dx"        [none]
 #
 # Every one of them is validated below and echoed back before any work starts,
 # and the READY banner reports what was actually built. The driver has no other
 # way to tell a worker that quietly ignored it from one that obeyed.
 #
-# Afterwards call `.venv/bin/...` directly rather than `uv run`: `uv run`
-# resyncs to uv.lock first, which removes anything you installed on top of it.
+# Afterwards call `.pixi/envs/default/bin/...` directly rather than `pixi run`:
+# `pixi run` reinstalls from pixi.lock first, which removes anything you
+# installed on top of it.
 set -uo pipefail
 
 log() { echo "[$(date +%H:%M:%S)] $*"; }
@@ -69,17 +70,16 @@ case "$REPO_URL" in
     *) die "REPO_URL '$REPO_URL' is not a URL or a path -- the handoff was mangled." ;;
 esac
 
-# --- uv -----------------------------------------------------------------
-if ! command -v uv >/dev/null 2>&1; then
-    log "installing uv"
-    curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || die "uv install failed"
+# --- pixi ---------------------------------------------------------------
+if ! command -v pixi >/dev/null 2>&1; then
+    log "installing pixi"
+    curl -fsSL https://pixi.sh/install.sh | sh >/dev/null 2>&1 || die "pixi install failed"
 fi
-# The installer puts uv in ~/.local/bin, which a non-interactive shell does not
-# have on PATH yet -- it writes an env file for exactly this.
-# shellcheck disable=SC1091
-. "$HOME/.local/bin/env" 2>/dev/null || export PATH="$HOME/.local/bin:$PATH"
-command -v uv >/dev/null 2>&1 || die "uv still not on PATH"
-log "$(uv --version)"
+# The installer puts pixi in ~/.pixi/bin, which a non-interactive shell does not
+# have on PATH yet.
+export PATH="$HOME/.pixi/bin:$PATH"
+command -v pixi >/dev/null 2>&1 || die "pixi still not on PATH"
+log "$(pixi --version)"
 
 # --- checkout -----------------------------------------------------------
 # The interesting case is the second run. A workstation you have attached to
@@ -125,24 +125,27 @@ if [ "$HEAD_REF" != "$BRANCH" ] && [ "$HEAD_REF" != "HEAD" ]; then
 fi
 
 # --- dependencies -------------------------------------------------------
-# uv fetches the interpreter named in .python-version itself, so the box's own
-# python does not matter. Every locked dependency has a manylinux wheel, so this
-# needs no compiler -- and these workers have none.
-log "uv sync ${SYNC_ARGS:-(default groups)}"
+# pixi brings the interpreter named in pixi.lock with it, so the box's own
+# python does not matter. Every locked package is a prebuilt conda package or a
+# manylinux wheel, so this needs no compiler -- and these workers have none.
+# The default environment always, plus whatever else was asked for: unlike the
+# dependency groups this replaced, naming an environment installs that one
+# INSTEAD, and a worker without the pipeline installed is not a worker.
+log "pixi install -e default ${SYNC_ARGS:-}"
 # shellcheck disable=SC2086
-uv sync $SYNC_ARGS 2>&1 | tail -3 || die "uv sync failed"
+pixi install --locked -e default $SYNC_ARGS 2>&1 | tail -3 || die "pixi install failed"
 
-PY=.venv/bin/python
-[ -x "$PY" ] || die "no $PY after sync"
-"$PY" -c 'import novelty' 2>/dev/null || die "the project did not import after sync"
+PY=.pixi/envs/default/bin/python
+[ -x "$PY" ] || die "no $PY after install"
+"$PY" -c 'import intruder' 2>/dev/null || die "the project did not import after install"
 
-# If extra groups were asked for, say whether they arrived. `uv sync --group dx`
-# that silently no-ops leaves an import error an hour into the run.
+# If another environment was asked for, say whether it arrived. A `pixi install
+# -e dx` that silently no-ops leaves an import error an hour into the run.
 if [ -n "$SYNC_ARGS" ]; then
-    log "synced with: $SYNC_ARGS"
+    log "installed with: $SYNC_ARGS"
     case "$SYNC_ARGS" in
-        *"--group dx"*|*"--all-groups"*)
-            if "$PY" -c 'import dxpy' 2>/dev/null; then
+        *"-e dx"*|*"--environment dx"*|*"--all-environments"*)
+            if .pixi/envs/dx/bin/python -c 'import dxpy' 2>/dev/null; then
                 log "  dxpy importable"
             else
                 log "  WARNING: dxpy still not importable after '$SYNC_ARGS'"
@@ -154,16 +157,16 @@ cat <<EOF
 
 [$(date +%H:%M:%S)] === READY ===
 
-  $("$PY" --version) at $REPO_DIR/.venv
+  $("$PY" --version) at $REPO_DIR/.pixi/envs/default
   $HEAD_SHA on $BRANCH from $REPO_URL
-  uv sync ${SYNC_ARGS:-(default groups)}
+  pixi install -e default ${SYNC_ARGS:-}
 
-  Use the venv binaries, NOT 'uv run' -- it resyncs to uv.lock and undoes
-  anything you installed on top of it:
+  Use the environment's binaries, NOT 'pixi run' -- it reinstalls from
+  pixi.lock and undoes anything you installed on top of it:
 
     cd $REPO_DIR
-    .venv/bin/novelty --help
-    .venv/bin/python -m pytest -q
+    .pixi/envs/default/bin/novelty --help
+    .pixi/envs/default/bin/python -m pytest -q
 
   Nothing here survives the session: 'dx upload' anything you want to keep, or
   leave it in \$OUT and dx-instance.sh fetches it for you.

@@ -196,7 +196,7 @@ def test_a_missing_package_is_reported_the_way_the_other_providers_report_one(mo
     monkeypatch.setitem(sys.modules, "claude_agent_sdk", None)
     events = drain(stream_claude_code([{"role": "user", "content": "hello"}]))
     assert [event["type"] for event in events] == ["error"]
-    assert "uv add claude-agent-sdk" in events[0]["message"]
+    assert "pixi add --feature backend --pypi claude-agent-sdk" in events[0]["message"]
 
 
 def test_the_graph_hands_the_turn_over_instead_of_building_a_model(monkeypatch):

@@ -72,7 +72,7 @@ services:
       #
       # This is also where the Upload button puts files: /data/uploads, which is
       # ./data/uploads on your machine. Nothing about that path is Docker-
-      # specific, which is why uploading works identically with `just dev`.
+      # specific, which is why uploading works identically with `pixi run dev`.
       - ./data:/data
       # Data you keep outside the repository. Uncomment, point at it, and have
       # the manifest's `path:` say /mnt/extra/... :

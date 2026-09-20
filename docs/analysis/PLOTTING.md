@@ -36,9 +36,9 @@ insertion VCF (see [`scripts/merge-SV/`](../../scripts/merge-SV/) for how those 
 built):
 
 ```bash
-uv run svpytrf -i <cohort>_multisample.INS.vcf -o <cohort>.trf.tsv
-uv run novelty -i <cohort>.trf.tsv           -o <cohort>.trf.novelty.tsv
-uv run filter  -i <cohort>.trf.novelty.tsv   -o data/plots/02_<cohort>.trf.noveltyFiltered.tsv
+pixi run svpytrf -i <cohort>_multisample.INS.vcf -o <cohort>.trf.tsv
+pixi run novelty -i <cohort>.trf.tsv           -o <cohort>.trf.novelty.tsv
+pixi run filter  -i <cohort>.trf.novelty.tsv   -o data/plots/02_<cohort>.trf.noveltyFiltered.tsv
 ```
 
 See [Novelty screen](../tools/NOVELTY_SCREEN.md) for the catalogues and the known/novel
@@ -71,9 +71,9 @@ in total. [`scripts/fetch_plot_data.sh`](../../scripts/fetch_plot_data.sh) pulls
 into `data/plots/`:
 
 ```bash
-just plot-data --list        # what is missing, and how much it weighs
-just plot-data               # everything not already there
-just plot-data --only 02_    # just the novelty-filtered pair (58 MiB)
+pixi run plot-data --list        # what is missing, and how much it weighs
+pixi run plot-data               # everything not already there
+pixi run plot-data --only 02_    # just the novelty-filtered pair (58 MiB)
 ```
 
 The folder is link-shared, so this needs no Drive credential. Each file is checked

@@ -3,7 +3,7 @@ them, and how one becomes a registered dataset.
 
 The whole point of this module is that the destination is
 `settings.data_dir / "uploads"` and nothing more clever. Under Docker that
-resolves inside the `/data` bind mount; under `just dev` it is the repository's
+resolves inside the `/data` bind mount; under `pixi run dev` it is the repository's
 own `data/`. Both are already the directory the registry resolves manifest
 paths against, so an uploaded file is reachable by a manifest the moment it
 lands — with no branch anywhere asking whether we are in a container.
@@ -474,7 +474,7 @@ def link_path(raw_path: str) -> Upload:
     # A relative path is read against the data directory, not the process's
     # working directory. `data/sv_output/merged.vcf.gz` is what someone types,
     # and resolving that against wherever uvicorn happened to be started —
-    # `backend/` under `just dev`, `/app` in the container — would mean the same
+    # `backend/` under `pixi run dev`, `/app` in the container — would mean the same
     # string finding a different file in each, or more often none at all.
     candidate = Path(raw_path).expanduser()
     if not candidate.is_absolute():

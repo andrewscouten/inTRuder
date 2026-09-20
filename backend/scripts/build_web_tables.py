@@ -1,7 +1,7 @@
 """Turn a screened, gene-annotated callset into the two tables the web layer draws from.
 
-    cd backend && uv run python scripts/build_web_tables.py           # both cohorts
-    cd backend && uv run python scripts/build_web_tables.py hprc      # just one
+    pixi run web-data           # both cohorts
+    pixi run web-data hprc      # just one
 
 Input is one file per cohort, `data/plots/parquet/05_*.parquet` (see `COHORTS`),
 written by `scripts/plots_to_parquet.py` from the TSVs `scripts/fetch_plot_data.sh`
@@ -574,8 +574,8 @@ def build(cohort: Cohort) -> int:
         print(f"[{cohort.name}] missing input: {source.relative_to(REPO_ROOT)}",
               file=sys.stderr)
         print(f"[{cohort.name}] build it with:\n"
-              "  just plot-data      # download the TSVs\n"
-              "  just plot-parquet   # convert them", file=sys.stderr)
+              "  pixi run plot-data      # download the TSVs\n"
+              "  pixi run plot-parquet   # convert them", file=sys.stderr)
         return 1
 
     out = REPO_ROOT / "data" / cohort.out

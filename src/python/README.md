@@ -1,6 +1,7 @@
 # Python source (`src/python`)
 
-Python code for the project. Environment is managed with [uv](https://docs.astral.sh/uv/).
+Python code for the project. Environments are managed with [pixi](https://pixi.sh);
+`[tool.pixi]` in `../../pyproject.toml` declares all of them.
 
 ## Layout
 
@@ -33,55 +34,62 @@ Shell scripts live in `../../scripts/`, not here. R lives in `../R/`.
 ## Setup
 
 ```bash
-uv sync                       # create .venv and install locked dependencies
+pixi install                  # build the default environment from the lockfile
 ```
 
-## Dependency groups
+## Environments
 
-`uv sync` installs the runtime dependencies plus `dev`. The rest are opt-in, so a
-Nextflow worker that only writes a TSV never installs a plotting stack:
+The default environment is the pipeline plus ruff and pytest, and nothing else.
+Everything heavy is a separate environment, so a Nextflow worker that only writes
+a TSV never installs a plotting stack — and installing one environment can never
+disturb another:
 
-| Group | Install | What it covers |
+| Environment | Install | What it covers |
 |---|---|---|
-| *(runtime)* | `uv sync` | what a pipeline step imports — cyvcf2, pysam, pytrf, parasail, pandas, numpy, optuna |
-| `dev` | `uv sync` (default) | ruff, pytest, jupyterlab, ipykernel |
-| `analysis` | `uv sync --group analysis` | matplotlib, seaborn, scikit-learn, umap-learn — for `intruder.analysis` |
-| `dx` | `uv sync --group dx` | dxpy, for `scripts/dnanexus/` — see [DNAnexus docs](../../docs/scripts/DNANexus.md) |
+| `default` | `pixi install` | what a pipeline step imports — cyvcf2, pysam, pytrf, parasail, pandas, numpy, optuna — plus ruff and pytest |
+| `analysis` | `pixi install -e analysis` | matplotlib, seaborn, scikit-learn, umap-learn — for `intruder.analysis` |
+| `notebooks` | `pixi install -e notebooks` | JupyterLab and ipykernel on top of `analysis` |
+| `dx` | `pixi install -e dx` | dxpy, for `scripts/dnanexus/` — see [DNAnexus docs](../../docs/scripts/DNANexus.md) |
+| `backend` | `pixi install -e backend` | the web service: FastAPI, LangGraph, DuckDB, torch — shares nothing with the pipeline |
 
-Put a dependency in the runtime set only if a pipeline step imports it. If one
-subsystem needs something heavy, give it a group.
+Put a dependency in `[project.dependencies]` only if a pipeline step imports it.
+If one subsystem needs something heavy, give it a feature under `[tool.pixi]`.
+
+The compiled packages come from conda rather than PyPI, so no install builds
+htslib or parasail from source.
 
 ## Common tasks
 
 ```bash
-uv add pandas                 # add a runtime dependency (updates pyproject.toml + uv.lock)
-uv add --group analysis seaborn   # add to a group instead
-uv run ruff check src/python tests/python   # lint
-uv run pytest                 # run tests
+pixi add pandas                       # a runtime dependency, from conda
+pixi add --pypi some-pypi-only-pkg    # one that only exists on PyPI
+pixi add --feature analysis seaborn   # into another environment instead
+pixi run lint-pipeline                # lint
+pixi run test-pipeline                # run tests
 
 # identify repeats using pyTRF from a multisample SV file
-uv run svpytrf -i multisample.vcf -o trf_output.tsv
+pixi run svpytrf -i multisample.vcf -o trf_output.tsv
 
 # annotate TRF output with novelty verdicts
-uv run novelty -i trf_output.tsv -o trf_novelty.tsv
+pixi run novelty -i trf_output.tsv -o trf_novelty.tsv
 
 # filter novelty output by motif purity and repeat coverage, etc.
-uv run filter -i trf_novelty.tsv -o trf_novelty_filtered.tsv
+pixi run filter -i trf_novelty.tsv -o trf_novelty_filtered.tsv
 
 # annotate a VCF with per-ALT compressibility (SVCOMP) -- see
 # ../../docs/scripts/annotate_compression.md
-uv run compression -i multisample.vcf -o multisample_comp.vcf
+pixi run compression -i multisample.vcf -o multisample_comp.vcf
 ```
 
 The command names above are unchanged by the move to `intruder/` — only the
 module paths behind them shifted. To run a step without the console script, use
-its module path: `uv run python -m intruder.pipeline.novelty --help`.
+its module path: `pixi run python -m intruder.pipeline.novelty --help`.
 
 ## Tests
 
 Tests live in `../../tests/python/`, mirroring the package layout — never beside
-the code. `uv run pytest` from the repo root runs them all; CI runs the same
-command on every push and pull request.
+the code. `pixi run test-pipeline` from anywhere in the repo runs them all; CI runs
+the same task on every push and pull request.
 
-The Python version is pinned in `../../.python-version`; dependencies are locked in
-`../../uv.lock`. Commit both along with `pyproject.toml`.
+The Python version and every dependency are pinned in `../../pixi.lock`. Commit
+it along with `pyproject.toml`.

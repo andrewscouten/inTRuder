@@ -41,7 +41,7 @@ them. The ones you will reach for:
   -f, --input ID|PATH   stage a platform file onto the worker; repeatable
   -o, --output-dir DIR  where results land locally               [data/dx/<run>]
   -b, --branch BRANCH   branch the worker clones          [your current branch]
-      --sync-args ARGS  extra flags for the worker's uv sync, e.g. "--group dx"
+      --sync-args ARGS  extra flags for the worker's pixi install, e.g. "-e dx"
   -i, --instance TYPE   override the instance type this script picks
   -n, --dry-run         print the platform calls instead of running them
 

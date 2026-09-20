@@ -50,8 +50,8 @@ class Settings:
 
     # Uploads. The directory is deliberately derived from data_dir rather than
     # configured separately: under Docker that is the /data bind mount, and on a
-    # bare `just dev` it is the repository's data/ — so the same code path puts
-    # the file somewhere the registry can already reach in both cases, and
+    # bare `pixi run dev` it is the repository's data/ — so the same code path
+    # puts the file somewhere the registry can already reach in both cases, and
     # nothing in the app has to ask which one it is running under.
     uploads_enabled: bool = field(
         default_factory=lambda: os.getenv("UPLOADS_ENABLED", "true").lower()

@@ -4,11 +4,10 @@
 # uses dorny/paths-filter). A skipped job still reports as a passing check, so
 # this is safe to use as a required status check.
 #
-# Deliberately cheap: `uv sync` with no extra groups, so this installs the
-# runtime set plus dev tooling and nothing else. The heavy groups (`analysis`,
-# `dx`) are not exercised here -- if a job ever needs them, add a separate one
-# rather than growing this matrix, so a broken plotting dependency can never
-# block a pipeline fix.
+# Deliberately cheap: each job installs the one pixi environment it needs. The
+# heavy ones (`analysis`, `notebooks`, `dx`) are not exercised here -- if a job
+# ever needs one, add a separate job rather than growing this matrix, so a broken
+# plotting dependency can never block a pipeline fix.
 #
 # The Docker images are built by docker.yml, manually. Nothing here builds them.
 
@@ -43,10 +42,12 @@ jobs:
               - 'src/python/**'
               - 'tests/python/**'
               - 'pyproject.toml'
-              - 'uv.lock'
+              - 'pixi.lock'
               - '.github/workflows/ci.yml'
             backend:
               - 'backend/**'
+              - 'pyproject.toml'
+              - 'pixi.lock'
               - '.github/workflows/ci.yml'
             shell:
               - 'scripts/**/*.sh'
@@ -60,49 +61,43 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-
-      # --frozen: fail if uv.lock disagrees with pyproject.toml rather than
+      # locked: fail if pixi.lock disagrees with the manifests rather than
       # silently resolving something else. That is the whole point of committing
       # the lockfile -- CI must install exactly what a contributor installs.
-      - name: Install the locked environment
-        run: uv sync --frozen
+      - uses: prefix-dev/setup-pixi@v0.10.2
+        with:
+          environments: default
+          locked: true
+          cache: true
 
       - name: Lint
-        run: uv run ruff check src/python tests/python
+        run: pixi run lint-pipeline
 
       - name: Tests
-        run: uv run pytest -q
+        run: pixi run test-pipeline
 
   backend:
     name: Backend (lint + tests)
     needs: changes
     if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
+      # `backend` is a standalone environment in the one workspace: its own
+      # Python, sharing nothing with the pipeline. See pyproject.toml. The tasks run
+      # themselves from backend/, so this job does not change directory.
+      - uses: prefix-dev/setup-pixi@v0.10.2
         with:
-          enable-cache: true
-
-      # backend/ is its own uv project with its own lockfile, not a workspace
-      # member of the root one. See backend/pyproject.toml.
-      - name: Install the locked environment
-        run: uv sync --frozen
+          environments: backend
+          locked: true
+          cache: true
 
       - name: Lint
-        run: uv run ruff check app scripts
+        run: pixi run lint-backend
 
       - name: Tests
-        run: uv run pytest -q
+        run: pixi run test-backend
 
   shell:
     name: Shell scripts

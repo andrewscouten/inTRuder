@@ -50,14 +50,13 @@ _dx_token="$(_dx_env_get DX_API_TOKEN)"
 [[ -n "${_dx_token}" ]] || { _dx_env_say "DX_API_TOKEN is empty in ${_dx_env_file}"
     return 1 2>/dev/null || exit 1; }
 
-# `dx` lives in the non-default `dx` dependency-group, and `uv sync` resyncs to
-# exactly the groups you name -- so a plain `uv sync` silently uninstalls it.
-# The failure surfaces later as an opaque `Failed to spawn: dx`, so check for it
-# here, where the fix is obvious.
-if ! uv run --group dx --no-sync dx --version >/dev/null 2>&1; then
-    echo "dx-env: dxpy missing from .venv (a plain 'uv sync' removes it)." >&2
-    echo "dx-env: restoring with 'uv sync --group dx' ..." >&2
-    uv sync -q --group dx || { _dx_env_say "could not install dxpy; run 'uv sync --group dx'"
+# `dx` lives in the `dx` environment, which a plain `pixi install` does not
+# build. The failure surfaces later as an opaque `Failed to spawn: dx`, so check
+# for it here, where the fix is obvious.
+if ! pixi run -e dx dx --version >/dev/null 2>&1; then
+    echo "dx-env: the 'dx' environment is not installed." >&2
+    echo "dx-env: building it with 'pixi install -e dx' ..." >&2
+    pixi install -e dx >/dev/null 2>&1 || { _dx_env_say "could not install dxpy; run 'pixi install -e dx'"
         return 1 2>/dev/null || exit 1; }
 fi
 
@@ -79,7 +78,7 @@ if [[ -z "${_dx_project}" ]]; then
     _dx_name="$(_dx_env_get DX_PROJECT_NAME)"
     [[ -n "${_dx_name}" ]] || { _dx_env_say "set DX_PROJECT_ID or DX_PROJECT_NAME in ${_dx_env_file}"
         return 1 2>/dev/null || exit 1; }
-    _dx_project="$(uv run --group dx --no-sync dx find projects --name "${_dx_name}" --brief 2>/dev/null | head -1 | tr -d '\r')"
+    _dx_project="$(pixi run -e dx dx find projects --name "${_dx_name}" --brief 2>/dev/null | head -1 | tr -d '\r')"
     [[ -n "${_dx_project}" ]] || { _dx_env_say "no project named '${_dx_name}' is visible to this token"
         return 1 2>/dev/null || exit 1; }
 fi

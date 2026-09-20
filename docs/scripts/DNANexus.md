@@ -14,7 +14,7 @@ scripts/dnanexus/dx-instance-cpu.sh -t 30m
 scripts/dnanexus/dx-instance-gpu.sh -t 30m
 
 # run one program, then return
-scripts/dnanexus/dx-batch-cpu.sh -t 1h -- .venv/bin/python -m pytest -q
+scripts/dnanexus/dx-batch-cpu.sh -t 1h -- .pixi/envs/default/bin/python -m pytest -q
 scripts/dnanexus/dx-batch-gpu.sh -t 30m -- nvidia-smi
 
 # with an input file, and a directory for the results
@@ -29,7 +29,7 @@ scripts/dnanexus/dx-batch-cpu.sh -t 4h -o data/dx/screen1 \
 | `-f, --input /survivor/x.vcf` | Copy a project file onto the machine. Repeatable. | none |
 | `-o, --output-dir data/dx/run1` | Local directory for the results. | `data/dx/<run>` |
 | `-b, --branch BRANCH` | Branch the machine clones. | your current branch |
-| `--sync-args "--group dx"` | Extra flags for the machine's `uv sync`. | none |
+| `--sync-args "--group dx"` | Extra flags for the machine's `pixi install`. | none |
 | `-i, --instance TYPE` | Instance type. | see [Instance types](#instance-types) |
 | `-n, --dry-run` | Print the commands. Start no machine. | off |
 
@@ -63,24 +63,24 @@ All four scripts accept these options. Use `--help` for the rest.
 4. Install the dx toolkit.
 
    ```bash
-   uv sync --group dx
+   pixi install -e dx
    ```
 
 5. Register your SSH key. Do this once per computer.
 
    ```bash
    source scripts/dnanexus/dx-env.sh
-   uv run dx ssh_config
+   pixi run -e dx dx ssh_config
    ```
 
 6. Verify the setup.
 
    ```bash
-   uv run dx whoami
-   uv run dx ls /
+   pixi run -e dx dx whoami
+   pixi run -e dx dx ls /
    ```
 
-Use `uv run dx`, not `dx`. `.venv/bin` is not on `PATH`, so a bare `dx` reports
+Use `pixi run -e dx dx`, not `dx`. The environment's `bin` is not on `PATH`, so a bare `dx` reports
 `command not found` even when the toolkit is installed correctly.
 
 ## Running
@@ -138,9 +138,9 @@ did not stop. A machine runs until it is terminated. Closing your SSH session
 does not stop it.
 
 ```bash
-uv run dx find jobs --user self --state running --origin-jobs
-uv run dx terminate job-XXXXXXXXXXXXXXXXXXXXXXXX
-uv run dx describe job-XXXXXXXXXXXXXXXXXXXXXXXX | grep "^State"
+pixi run -e dx dx find jobs --user self --state running --origin-jobs
+pixi run -e dx dx terminate job-XXXXXXXXXXXXXXXXXXXXXXXX
+pixi run -e dx dx describe job-XXXXXXXXXXXXXXXXXXXXXXXX | grep "^State"
 ```
 
 The state becomes `terminating`, then `terminated`.
@@ -158,9 +158,9 @@ Authenticate the shell before you run `dx` commands yourself:
 ```bash
 source scripts/dnanexus/dx-env.sh
 
-uv run dx ls /survivor/
-uv run dx download -f /survivor/HPRC_SV.survivor.vcf
-uv run dx upload results.tsv --destination /Results/<yours>/
+pixi run -e dx dx ls /survivor/
+pixi run -e dx dx download -f /survivor/HPRC_SV.survivor.vcf
+pixi run -e dx dx upload results.tsv --destination /Results/<yours>/
 ```
 
 Source `scripts/dnanexus/dx-env.sh`. Do not execute it. It only sets variables.
@@ -173,7 +173,7 @@ All paths are relative to the project. The same commands work on a machine.
 |---|---|
 | `scripts/dnanexus/dx-env.sh` | Reads `.env`, authenticates the dx toolkit, and selects the project. |
 | `scripts/dnanexus/dx-instance.sh` | The script the four commands call. Accepts their options and more. |
-| `scripts/dnanexus/dx-worker-setup.sh` | Runs on the machine. Installs uv, clones the branch, and builds the environment. |
+| `scripts/dnanexus/dx-worker-setup.sh` | Runs on the machine. Installs pixi, clones the branch, and builds the environment. |
 | `scripts/dnanexus/dx-wrapper.sh` | Shared code of the four commands. |
 
 Three further options of `scripts/dnanexus/dx-instance.sh`:
@@ -188,8 +188,8 @@ scripts/dnanexus/dx-instance.sh --gpu --no-setup -t 30m -- nvidia-smi
 - `--job`: connect to a machine that is already running.
 - `--no-setup`: do not clone the repository or build the environment.
 
-On the machine, call `.venv/bin/...` directly. Do not use `uv run`. It
-resynchronises to `uv.lock` and removes anything installed on top of it.
+On the machine, call `.pixi/envs/default/bin/...` directly. Do not use `pixi
+run`. It reinstalls from `pixi.lock` and removes anything you put on top of it.
 
 ## DNAnexus documentation
 

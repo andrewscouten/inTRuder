@@ -4,9 +4,12 @@ version = "1.0.0"
 description = "Identifying novel human tandem-repeat loci absent from the reference genome"
 readme = "README.md"
 requires-python = ">=3.11"
-# Runtime dependencies: what a pipeline step needs to run. Add with `uv add X`.
-# Anything only one heavy subsystem needs belongs in a group below instead, so a
-# plain `uv sync` stays small enough to build on a laptop.
+# Runtime dependencies: what a pipeline step imports. Anything only one heavy
+# subsystem needs belongs in a pixi feature instead (see [tool.pixi] below), so
+# a plain `pixi install` stays small enough to build on a laptop.
+#
+# These are the floors the package declares. [tool.pixi.dependencies] names the
+# same packages again, without versions, to say they come from conda.
 dependencies = [
     "cyvcf2>=0.34.0",
     "joblib>=1.3",
@@ -20,7 +23,7 @@ dependencies = [
 ]
 
 [project.scripts]
-# `uv run novelty ...` etc. from anywhere in the repo. The command names are
+# `pixi run novelty ...` etc. from anywhere in the repo. The command names are
 # unchanged from before the move -- only the module paths behind them shift, so
 # nobody's notes or Nextflow process bodies break.
 svpytrf     = "intruder.pipeline.trf.sv_trfcaller:main"
@@ -29,52 +32,21 @@ novelty     = "intruder.pipeline.novelty.cli:main"
 strchive    = "intruder.pipeline.strchive.__main__:main"
 compression = "intruder.pipeline.compression.annotate:main"
 
-[dependency-groups]
-# Groups, not extras: nothing here is imported by a pipeline step, so none of it
-# belongs in a built wheel. Install with `uv sync --group <name>`; `dev` comes in
-# by default. See src/python/README.md for which group covers what.
-
-# Linting, tests and notebook tooling.
-dev = [
-    "ruff>=0.6",
-    "pytest>=8",
-    "jupyterlab>=4.6.3",
-    "ipykernel>=7.3.0",
-]
-
-# Plotting and stats for `intruder.analysis`. Kept out of the runtime set because
-# the pipeline itself never draws anything, and matplotlib/scikit-learn are a
-# large install for a Nextflow worker that only needs to write a TSV.
-analysis = [
-    "matplotlib>=3.11.1",
-    "scikit-learn>=1.5",
-    "seaborn>=0.13",
-    "umap-learn>=0.5.6",
-]
-
-# The DNAnexus toolkit, for `scripts/dnanexus/dx-*.sh` and anything else that
-# talks to the platform. Not in `dev` because `uv sync` installs `dev` by default
-# and this is only useful with a token in `.env`. See docs/scripts/DNANexus.md.
-dx = [
-    "dxpy>=0.412.0",
-]
-
 [build-system]
-requires = ["uv_build>=0.9,<0.10"]
-build-backend = "uv_build"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.uv.build-backend]
+[tool.hatch.build.targets.wheel]
 # One installed package, `intruder`, holding every module in the project:
 #   intruder.trcore     shared primitives
 #   intruder.pipeline   the pipeline steps
 #   intruder.analysis   post-hoc analysis of their output
 # It replaces the five bare top-level packages that were installed before
 # (trcore, novelty, strchive, svpytrf, filter).
-# It is installed editable, so edits take effect without re-syncing. A single
+# It is installed editable, so edits take effect without reinstalling. A single
 # owned top-level name is deliberate -- `pipeline` or `analysis` on their own
 # would collide with real packages in site-packages.
-module-root = "src/python"
-module-name = "intruder"
+packages = ["src/python/intruder"]
 
 [tool.ruff]
 line-length = 100
@@ -89,7 +61,7 @@ testpaths = ["tests/python"]
 # __init__.py scaffolding.
 addopts = ["--import-mode=importlib"]
 # `intruder` is installed editable, but keeping src/python on sys.path means the
-# tests also run against a bare checkout that has not been synced.
+# tests also run against a bare checkout with no environment installed.
 pythonpath = ["src/python"]
 
 
@@ -100,3 +72,242 @@ pythonpath = ["src/python"]
 # is load-bearing while the annotator's input format is still settling.
 "src/python/intruder/pipeline/annotation/lps_annotate.py" = ["BLE001"]
 "src/python/intruder/pipeline/trf/sv_trfcaller.py" = ["SIM115"]
+
+
+# --------------------------------------------------------------------------- #
+# pixi: the environments and tasks for the whole repository, including the web
+# service under backend/. Everything below configures pixi and nothing else.
+# --------------------------------------------------------------------------- #
+# inTRuder's environments and tasks.
+#
+# One workspace, several environments. Nothing heavy is installed unless you ask
+# for it, so the everyday install stays small enough to build on a laptop:
+#
+# pixi install              the pipeline plus ruff/pytest -- the default
+# pixi run -e analysis ...  matplotlib, scikit-learn, seaborn, umap
+# pixi run -e backend ...   FastAPI + LangGraph + torch, a multi-GB install
+# pixi run -e dx ...        the DNAnexus toolkit
+# pixi run -e notebooks ... JupyterLab
+#
+# Each environment is its own directory under .pixi/envs, so moving between them
+# costs nothing after the first install and no install can uninstall another's
+# packages -- which is what the old dependency-group layout kept doing.
+#
+# `pixi task list` shows every task; `pixi run <task>` picks the environment the
+# task belongs to on its own.
+
+[tool.pixi.workspace]
+name = "intruder"
+channels = ["conda-forge", "bioconda"]
+platforms = ["linux-64", "osx-64", "osx-arm64"]
+
+# --------------------------------------------------------------------------- #
+# The pipeline itself.
+# --------------------------------------------------------------------------- #
+
+# The compiled dependencies come from conda rather than PyPI: bioconda ships
+# built cyvcf2/parasail/pytrf for every platform here, which is what lets an
+# install skip the htslib and parasail C builds entirely.
+#
+# pysam is the exception and stays on PyPI: the bioconda package carries no PyPI
+# mapping, so listing it here installs conda pysam AND a second copy from PyPI
+# to satisfy the same requirement. Its wheels bundle htslib anyway.
+#
+# No version floors here on purpose -- they live in [project.dependencies]
+# above, which is what the package declares it needs. The solver takes the
+# newest build that satisfies them, so repeating the numbers here would only be
+# a second place to forget to update one.
+[tool.pixi.dependencies]
+python = "3.13.*"
+cyvcf2 = "*"
+joblib = "*"
+numpy = "*"
+optuna = "*"
+pandas = "*"
+parasail-python = "*"
+pytrf = "*"
+tqdm = "*"
+
+# `intruder` installed editable from src/python, so edits take effect without
+# reinstalling. Its [project.dependencies] above resolve against the conda
+# packages listed here rather than being downloaded again from PyPI.
+[tool.pixi.pypi-dependencies]
+intruder = { path = ".", editable = true }
+
+# --------------------------------------------------------------------------- #
+# Features. Each is a set of packages; the environments below combine them.
+# --------------------------------------------------------------------------- #
+
+# Linting and tests. In the default environment because `pixi run check` is the
+# one thing everybody runs.
+[tool.pixi.feature.dev.dependencies]
+ruff = ">=0.6"
+pytest = ">=8"
+
+# Plotting and stats for `intruder.analysis`. Kept out of the default set
+# because the pipeline never draws anything, and matplotlib/scikit-learn are a
+# large install for a Nextflow worker that only needs to write a TSV.
+[tool.pixi.feature.analysis.dependencies]
+matplotlib = ">=3.11.1"
+scikit-learn = ">=1.5"
+seaborn = ">=0.13"
+umap-learn = ">=0.5.6"
+
+# JupyterLab, for notebooks/. Opt-in: it is a few hundred MB that a pipeline run
+# has no use for.
+[tool.pixi.feature.notebooks.dependencies]
+jupyterlab = ">=4.6.3"
+ipykernel = ">=7.3.0"
+
+# The DNAnexus toolkit, for `scripts/dnanexus/dx-*.sh`. Only useful with a token
+# in .env -- see docs/scripts/DNANexus.md.
+[tool.pixi.feature.dx.dependencies]
+python = "3.13.*"
+# dxpy caps urllib3 below 2.8, and nothing in the conda solve knows that. Say it
+# here or the environment resolves to a urllib3 dxpy refuses to install against.
+urllib3 = "<2.8"
+
+[tool.pixi.feature.dx.pypi-dependencies]
+dxpy = ">=0.412.0"
+
+# Node, so `pixi run frontend` works on a machine with no system Node install.
+[tool.pixi.feature.frontend.dependencies]
+nodejs = ">=22"
+
+# The web service: FastAPI + LangGraph + DuckDB. Its own Python and its own
+# packages, shared with nothing -- see `no-default-feature` below.
+[tool.pixi.feature.backend.dependencies]
+# Held at 3.12: sentence-transformers needs torch, and torch's last macOS
+# x86_64 wheels (2.2.2) are cp312-max, so an Intel Mac cannot run this on 3.13.
+python = "3.12.*"
+
+[tool.pixi.feature.backend.pypi-dependencies]
+fastapi = ">=0.115"
+uvicorn = { version = ">=0.32", extras = ["standard"] }
+duckdb = ">=1.1"
+pyyaml = ">=6.0"
+pandas = ">=2.2"
+pyarrow = ">=17"
+langgraph = ">=0.2.60"
+langchain-anthropic = ">=0.3"
+python-dotenv = ">=1.0"
+httpx = ">=0.28.1"
+pyhpo = ">=4.0.0"
+claude-agent-sdk = ">=0.2.148"
+sentence-transformers = ">=6.0.0"
+# transformers 5 (pulled in by sentence-transformers 6) checks at import time
+# that torch>=2.5 and disables itself otherwise, without declaring it as an
+# install-time dependency. Say it here.
+torch = ">=2.5"
+
+# An Intel Mac is a dead end for the current stack: torch's last macOS x86_64
+# wheels are 2.2.2, sentence-transformers 6 requires transformers 5, and
+# transformers 5 does not work against torch 2.2. So that one platform holds at
+# the last combination that resolves; everywhere else takes current.
+# `resolve_phenotype` only calls SentenceTransformer(...).encode(), which is
+# unchanged across these versions. torch 2.2.2 is also built against the NumPy
+# 1.x C API -- with NumPy 2 installed every tensor<->array conversion fails,
+# which is exactly what embed_text does.
+[tool.pixi.feature.backend.target.osx-64.pypi-dependencies]
+sentence-transformers = ">=5.1,<6"
+transformers = "<5"
+torch = "<2.3"
+numpy = "<2"
+
+# --------------------------------------------------------------------------- #
+# Environments.
+# --------------------------------------------------------------------------- #
+
+[tool.pixi.environments]
+# The pipeline environments share one solve, so `analysis` and `notebooks` get
+# exactly the pandas and numpy the default environment has -- a plot and the
+# callset it was drawn from can never come from different builds.
+default = { features = ["dev"], solve-group = "pipeline" }
+analysis = { features = ["dev", "analysis"], solve-group = "pipeline" }
+notebooks = { features = ["dev", "analysis", "notebooks"], solve-group = "pipeline" }
+# The dx scripts only ever call the `dx` CLI, so this one carries no pipeline.
+dx = { features = ["dx"], no-default-feature = true }
+frontend = { features = ["frontend"], no-default-feature = true }
+# Standalone: a different Python and a dependency set that shares nothing with
+# the pipeline. `no-default-feature` is what keeps `intruder` and its compiled
+# stack out of it; `dev` is the one thing both sides share, because a repo with
+# two ruffs at two versions lints differently depending on where you are.
+backend = { features = ["backend", "dev"], no-default-feature = true }
+
+# --------------------------------------------------------------------------- #
+# Tasks. `pixi run <name>`; anything after the name is passed through.
+# --------------------------------------------------------------------------- #
+
+[tool.pixi.tasks]
+# One-time setup for the whole repo: the environments the web app needs, the
+# synthetic demo dataset, and the two .env files. Everything else installs
+# itself the first time a task that needs it runs.
+setup = { depends-on = ["setup-backend", "setup-frontend"] }
+
+# Everything CI runs, in the same order. Run this before pushing.
+check = { depends-on = ["lint", "test"] }
+lint = { depends-on = ["lint-pipeline", "lint-backend", "lint-frontend"] }
+test = { depends-on = ["test-pipeline", "test-backend"] }
+
+lint-pipeline = "ruff check src/python tests/python"
+test-pipeline = "pytest -q"
+
+# Backend and frontend together. Ctrl-C stops both.
+dev = "pixi run backend & pixi run frontend & wait"
+
+# Download the shared Drive tables (750 MiB) into data/plots. `--list` first to
+# see what is missing; `--only 02_` for just the novelty-filtered pair.
+plot-data = "scripts/fetch_plot_data.sh"
+
+[tool.pixi.feature.backend.tasks]
+setup-backend = { cwd = "backend", cmd = "test -f .env || cp .env.example .env", depends-on = ["demo-data"] }
+backend = { cwd = "backend", cmd = "uvicorn app.main:app --reload --port 8000" }
+lint-backend = { cwd = "backend", cmd = "ruff check app scripts" }
+test-backend = { cwd = "backend", cmd = "pytest -q" }
+
+# Regenerate the synthetic demo dataset in data/web/demo.
+demo-data = { cwd = "backend", cmd = "python scripts/make_demo_data.py" }
+
+# Fetch the STRchive disease-locus catalog into data/web/strchive.
+strchive-data = { cwd = "backend", cmd = "python scripts/fetch_strchive.py" }
+
+# Download the HPO gene-phenotype release into data/web/hpo.
+hpo-data = { cwd = "backend", cmd = "python scripts/fetch_hpo.py" }
+
+# Build the HPO term embedding index the phenotype tool searches.
+hpo-index = { cwd = "backend", cmd = "python scripts/build_hpo_index.py" }
+
+# Cache data/plots/*.tsv as parquet in data/plots/parquet. Needed by web-data,
+# and worth it on its own: 05_hprc_multisample.tsv is 586 MB of text.
+plot-parquet = { cwd = "backend", cmd = "python scripts/plots_to_parquet.py" }
+
+# Rebuild the real loci/segments tables from the gene-annotated callsets. Needs
+# `pixi run plot-data && pixi run plot-parquet` first, and `pixi run
+# strchive-data` or the strchive_* columns come out empty. Name a cohort to
+# build just one.
+web-data = { cwd = "backend", cmd = "python scripts/build_web_tables.py" }
+
+[tool.pixi.feature.frontend.tasks]
+setup-frontend = { cwd = "frontend", cmd = "npm install && (test -f .env.local || cp .env.local.example .env.local)" }
+frontend = { cwd = "frontend", cmd = "npm run dev" }
+build = { cwd = "frontend", cmd = "npm run build" }
+lint-frontend = { cwd = "frontend", cmd = "npx tsc --noEmit" }
+
+[tool.pixi.feature.dx.tasks]
+# Each of these takes the flags its own script documents (`--help`); pixi passes
+# on whatever follows the task name.
+#
+#   pixi run dx-terminal --time 1h      rent a CPU box, terminate on exit
+#   pixi run dx-run --time 2h -- CMD    run CMD on one, fetch $OUT, terminate
+#
+# See docs/scripts/DNANexus.md.
+dx-terminal = "scripts/dnanexus/dx-instance-cpu.sh"
+# The same on a GPU box (1x L4). Costs several times as much per hour.
+dx-terminal-gpu = "scripts/dnanexus/dx-instance-gpu.sh"
+dx-run = "scripts/dnanexus/dx-batch-cpu.sh"
+dx-run-gpu = "scripts/dnanexus/dx-batch-gpu.sh"
+# What this project can launch, and what each type is for. Filter: `... gpu`.
+dx-instances = "scripts/dnanexus/dx-instance.sh --list-instances"
+
+[tool.pixi.feature.notebooks.tasks]
+lab = "jupyter lab"

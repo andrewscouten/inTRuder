@@ -3,7 +3,7 @@
 # machine up, runs what you asked for, saves the results, and terminates the
 # box -- no shell, nobody attached, nothing left billing.
 #
-#     scripts/dnanexus/dx-batch-cpu.sh -- .venv/bin/python -m pytest -q
+#     scripts/dnanexus/dx-batch-cpu.sh -- .pixi/envs/default/bin/python -m pytest -q
 #     scripts/dnanexus/dx-batch-cpu.sh -t 4h -o data/dx/screen1 \
 #         -f /survivor/HPRC_SV.survivor.vcf -- \
 #         novelty screen /home/dnanexus/HPRC_SV.survivor.vcf '$OUT/hits.tsv'

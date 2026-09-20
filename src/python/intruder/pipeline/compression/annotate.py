@@ -12,7 +12,7 @@ import pysam
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Annotate VCF with INFO fields\neg. uv run compression -i HG00320.merged.sniffles.vcf -o HG00320.merged.sniffles_annotated.vcf")
+    parser = argparse.ArgumentParser(description="Annotate VCF with INFO fields\neg. pixi run compression -i HG00320.merged.sniffles.vcf -o HG00320.merged.sniffles_annotated.vcf")
     parser.add_argument("--input", "-i", required=True, help="Input VCF file")
     parser.add_argument("--output", "-o", required=True, help="Output annotated VCF file")
     args = parser.parse_args()

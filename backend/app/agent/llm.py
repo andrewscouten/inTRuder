@@ -18,7 +18,7 @@ from typing import Any
 class Provider:
     name: str
     default_model: str
-    package: str          # pip/uv package supplying the LangChain integration
+    package: str          # PyPI package supplying the LangChain integration
     credential_env: str    # "" when the provider needs no credential (local models)
     notes: str = ""
     # True for a provider that is not a chat model at all but a local harness
@@ -105,7 +105,7 @@ def describe_provider(provider_name: str) -> dict[str, Any]:
 def _missing_package(provider: Provider) -> RuntimeError:
     return RuntimeError(
         f"LLM_PROVIDER={provider.name} needs the {provider.package!r} package. "
-        f"Install it with:  cd backend && uv add {provider.package}"
+        f"Install it with:  pixi add --feature backend --pypi {provider.package}"
     )
 
 

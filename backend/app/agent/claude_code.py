@@ -94,7 +94,7 @@ def _require_sdk():
     except ImportError as exc:  # pragma: no cover - install-time path
         raise RuntimeError(
             "LLM_PROVIDER=claude-code needs the 'claude-agent-sdk' package. "
-            "Install it with:  cd backend && uv add claude-agent-sdk"
+            "Install it with:  pixi add --feature backend --pypi claude-agent-sdk"
         ) from exc
     return claude_agent_sdk
 

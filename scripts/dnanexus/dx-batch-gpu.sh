@@ -5,7 +5,7 @@
 #
 #     scripts/dnanexus/dx-batch-gpu.sh -- nvidia-smi
 #     scripts/dnanexus/dx-batch-gpu.sh -t 6h -o data/dx/evo2 -- \
-#         .venv/bin/python src/python/evo2_extract.py --out '$OUT'
+#         .pixi/envs/default/bin/python src/python/evo2_extract.py --out '$OUT'
 #
 # Everything after `--` is the program. It runs in the checkout with the venv
 # first on PATH, so `novelty` and `python -m ...` resolve there.
