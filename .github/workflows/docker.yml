@@ -1,7 +1,7 @@
 # Build the project's container images and publish them to GHCR.
 #
 # MANUAL ONLY. There is no `push:` or `pull_request:` trigger here on purpose —
-# the pipeline image compiles parasail and cyvcf2 from source and downloads
+# the pipeline image compiles cyvcf2 from source and downloads
 # ~75 MB of reference catalogs at build time, which is not something anyone
 # wants happening on every commit. Run it from the Actions tab, or:
 #
@@ -91,7 +91,7 @@ jobs:
   build:
     needs: plan
     runs-on: ubuntu-latest
-    # The pipeline image builds htslib and parasail from source; an emulated
+    # The pipeline image builds htslib from source; an emulated
     # arm64 leg of that is slow enough to need the headroom.
     timeout-minutes: 120
     permissions:

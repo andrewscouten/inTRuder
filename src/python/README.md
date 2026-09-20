@@ -46,17 +46,20 @@ disturb another:
 
 | Environment | Install | What it covers |
 |---|---|---|
-| `default` | `pixi install` | what a pipeline step imports — cyvcf2, pysam, pytrf, parasail, pandas, numpy, optuna — plus ruff and pytest |
+| `default` | `pixi install` | every pipeline step — the core (pytrf, pandas, numpy, tqdm) plus the `sv`, `compression`, `search`, `annotation` and `modeling` features — plus ruff and pytest |
+| `modeling` | `pixi install -e modeling` | shap, scikit-learn, scipy, matplotlib — for `intruder.modeling`; solved outside the pipeline group, and not on osx-64 (see pyproject.toml) |
 | `analysis` | `pixi install -e analysis` | matplotlib, seaborn, scikit-learn, umap-learn — for `intruder.analysis` |
 | `notebooks` | `pixi install -e notebooks` | JupyterLab and ipykernel on top of `analysis` |
 | `dx` | `pixi install -e dx` | dxpy, for `scripts/dnanexus/` — see [DNAnexus docs](../../docs/scripts/DNANexus.md) |
 | `backend` | `pixi install -e backend` | the web service: FastAPI, LangGraph, DuckDB, torch — shares nothing with the pipeline |
 
-Put a dependency in `[project.dependencies]` only if a pipeline step imports it.
-If one subsystem needs something heavy, give it a feature under `[tool.pixi]`.
+Put a dependency in `[project.dependencies]` only if *every* pipeline step
+imports it. If one step needs something heavy, give it an extra under
+`[project.optional-dependencies]` and a matching feature under `[tool.pixi]`, so
+an image can install that step alone.
 
 The compiled packages come from conda rather than PyPI, so no install builds
-htslib or parasail from source.
+htslib from source.
 
 ## Common tasks
 

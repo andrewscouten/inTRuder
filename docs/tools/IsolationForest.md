@@ -16,7 +16,7 @@ chosen threshold.
 ## uv setup
 
 ```bash
-uv sync --group modeling      # installs shap, scikit-learn, scipy, matplotlib
+pixi install -e modeling      # shap, scikit-learn, scipy, matplotlib
 ```
 
 ## CLI
@@ -25,16 +25,16 @@ Four registered commands:
 
 ```bash
 # 1. inspect the feature table without fitting anything
-uv run isolation-forest features candidates.tsv features.tsv
+pixi run -e modeling isolation-forest features candidates.tsv features.tsv
 
 # 2. fit one model per motif-length x flank-presence stratum
-uv run isolation-forest fit candidates.tsv --model-out model.joblib
+pixi run -e modeling isolation-forest fit candidates.tsv --model-out model.joblib
 
 # 3. score a table (any table -- this one need not be the training set)
-uv run isolation-forest annotate candidates.tsv scored.tsv --model-in model.joblib
+pixi run -e modeling isolation-forest annotate candidates.tsv scored.tsv --model-in model.joblib
 
 # 4. sanity-check against STRchive disease loci
-uv run isolation-forest calibrate scored.tsv --metrics calibration.tsv
+pixi run -e modeling isolation-forest calibrate scored.tsv --metrics calibration.tsv
 ```
 
 

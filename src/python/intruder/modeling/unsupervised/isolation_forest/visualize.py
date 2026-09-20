@@ -12,8 +12,8 @@ duplicated across notebooks.
 from __future__ import annotations
 
 import os
+from collections.abc import Hashable
 from dataclasses import dataclass
-from typing import Hashable
 
 import pandas as pd
 import shap
