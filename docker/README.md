@@ -22,8 +22,8 @@ All three build from the **repository root** as context, governed by the root
 
 [`.github/workflows/docker.yml`](../.github/workflows/docker.yml) builds the
 images and pushes them to GHCR. It is **manual only**: there is no trigger on
-push or on pull request, because the pipeline image compiles htslib and
-parasail from source and downloads ~75 MB of reference catalogs during its
+push or on pull request, because the pipeline image compiles htslib
+from source and downloads ~75 MB of reference catalogs during its
 build. Run it from the repository's **Actions → Docker → Run workflow**, or:
 
 ```bash

@@ -8,29 +8,66 @@ requires-python = ">=3.11"
 # subsystem needs belongs in a pixi feature instead (see [tool.pixi] below), so
 # a plain `pixi install` stays small enough to build on a laptop.
 #
+# What is left here is what *every* step needs: the repeat finder, the tables
+# the steps pass between each other, and a progress bar. Everything else is
+# imported by exactly one module, so it is an extra below.
+#
+# `parasail` is not here and is not an extra: nothing in the repository imports
+# it. docs/Methods_overview.md said stage 01 scored purity with it, but purity
+# has always come from pytrf's own `repeat.identity`
+# (pipeline/trf/sv_trfcaller.py), so the dependency only ever cost the C build
+# in docker/pipeline.Dockerfile.
+#
 # These are the floors the package declares. [tool.pixi.dependencies] names the
 # same packages again, without versions, to say they come from conda.
 dependencies = [
-    "cyvcf2>=0.34.0",
-    "joblib>=1.3",
     "numpy>=2.0",
-    "optuna>=4.9.0",
     "pandas>=3.0.5",
-    "parasail>=1.3.4",
-    "pysam>=0.23",
     "pytrf>=1.5.0",
     "tqdm>=4.70.0",
 ]
 
 [project.scripts]
-# `pixi run novelty ...` etc. from anywhere in the repo. The command names are
+# `pixi run novelty ...` etc. from anywhere in the repo. Most command names are
 # unchanged from before the move -- only the module paths behind them shift, so
 # nobody's notes or Nextflow process bodies break.
-svpytrf     = "intruder.pipeline.trf.sv_trfcaller:main"
-filter      = "intruder.pipeline.trf.filter_ins_trf:main"
-novelty     = "intruder.pipeline.novelty.cli:main"
-strchive    = "intruder.pipeline.strchive.__main__:main"
-compression = "intruder.pipeline.compression.annotate:main"
+svpytrf          = "intruder.pipeline.trf.sv_trfcaller:main"
+filter           = "intruder.pipeline.trf.filter_ins_trf:main"
+novelty          = "intruder.pipeline.novelty.cli:main"
+strchive         = "intruder.pipeline.strchive.__main__:main"
+compression      = "intruder.pipeline.compression.annotate:main"
+isolation-forest = "intruder.modeling.unsupervised.isolation_forest.cli:main"
+
+# One extra per module that needs something the core does not. The name matches
+# the pixi feature that supplies the same package from conda, and the
+# `default` environment combines all of them -- the split is what lets a
+# container install the one step it runs instead of all five.
+[project.optional-dependencies]
+# `intruder.pipeline.trf.sv_trfcaller`: the only step that reads a VCF.
+sv = ["cyvcf2>=0.34.0"]
+
+# `intruder.pipeline.compression`: the only step that needs pysam. It has no
+# Windows wheel and requires a C build toolchain, so a plain install should not
+# have to build it just to run the rest of the pipeline.
+compression = ["pysam>=0.23"]
+
+# `intruder.pipeline.novelty.search`: Optuna, for the hyperparameter sweep. The
+# screen itself runs without it.
+search = ["optuna>=4.9.0"]
+
+# `intruder.pipeline.annotation.lps_annotate`: joblib, for its parallel map.
+annotation = ["joblib>=1.3"]
+
+# `intruder.modeling`: isolation-forest anomaly scoring + SHAP explanation.
+# Its own extra, not `analysis`, because it is a heavier, more specific stack
+# (SHAP's TreeExplainer) that only the isolation-forest CLI needs; a
+# plotting-only session should not have to pull it in.
+modeling = [
+    "shap>=0.52",
+    "scikit-learn>=1.5",
+    "scipy",
+    "matplotlib>=3.11.1",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -106,12 +143,16 @@ platforms = ["linux-64", "osx-64", "osx-arm64"]
 # --------------------------------------------------------------------------- #
 
 # The compiled dependencies come from conda rather than PyPI: bioconda ships
-# built cyvcf2/parasail/pytrf for every platform here, which is what lets an
-# install skip the htslib and parasail C builds entirely.
+# built cyvcf2/pytrf for every platform here, which is what lets an install skip
+# the htslib C build entirely.
 #
-# pysam is the exception and stays on PyPI: the bioconda package carries no PyPI
-# mapping, so listing it here installs conda pysam AND a second copy from PyPI
-# to satisfy the same requirement. Its wheels bundle htslib anyway.
+# pysam is the exception and stays on PyPI (see the `compression` feature): the
+# bioconda package carries no PyPI mapping, so listing it as a conda dependency
+# installs conda pysam AND a second copy from PyPI to satisfy the same
+# requirement. Its wheels bundle htslib anyway.
+#
+# Only what every step needs lives here; the rest is one feature per step,
+# below, mirroring [project.optional-dependencies].
 #
 # No version floors here on purpose -- they live in [project.dependencies]
 # above, which is what the package declares it needs. The solver takes the
@@ -119,12 +160,8 @@ platforms = ["linux-64", "osx-64", "osx-arm64"]
 # a second place to forget to update one.
 [tool.pixi.dependencies]
 python = "3.13.*"
-cyvcf2 = "*"
-joblib = "*"
 numpy = "*"
-optuna = "*"
 pandas = "*"
-parasail-python = "*"
 pytrf = "*"
 tqdm = "*"
 
@@ -143,6 +180,46 @@ intruder = { path = ".", editable = true }
 [tool.pixi.feature.dev.dependencies]
 ruff = ">=0.6"
 pytest = ">=8"
+
+# One feature per module that needs more than the core, mirroring
+# [project.optional-dependencies]. Splitting them is what lets an image install
+# the step it runs: docker/pipeline.Dockerfile builds `default`, so without this
+# every container carries all of them no matter which process Nextflow starts.
+[tool.pixi.feature.sv.dependencies]
+cyvcf2 = "*"
+
+[tool.pixi.feature.search.dependencies]
+optuna = "*"
+
+[tool.pixi.feature.annotation.dependencies]
+joblib = "*"
+
+# From PyPI, not conda -- see the note above [tool.pixi.dependencies].
+[tool.pixi.feature.compression.pypi-dependencies]
+pysam = ">=0.23"
+
+# `intruder.modeling`: isolation-forest scoring and its SHAP explanation. Kept
+# apart from `analysis` because SHAP's TreeExplainer is a heavier, more specific
+# stack than a plotting session needs.
+# Not on osx-64: shap's wheel requires llvmlite<0.46 on macOS x86_64, and no
+# llvmlite below 0.46 ships a Python 3.13 wheel, so the only way to satisfy it
+# on an Intel Mac is to build llvmlite from source, which fails. Every other
+# environment still resolves there; only this step is linux-64/osx-arm64.
+[tool.pixi.feature.modeling]
+platforms = ["linux-64", "osx-arm64"]
+
+[tool.pixi.feature.modeling.dependencies]
+scikit-learn = ">=1.5"
+scipy = "*"
+matplotlib = ">=3.11.1"
+
+# shap from PyPI, and not capped below 0.52: 0.51's wheel requires
+# llvmlite<0.46 on macOS x86_64, while the conda solve pins llvmlite 0.49 for
+# numba (umap-learn, same solve group), so osx-64 cannot satisfy both. 0.52
+# dropped that cap. Not taken from conda either -- conda-forge's build depends
+# on a torch variant with no osx-64 python 3.13 build.
+[tool.pixi.feature.modeling.pypi-dependencies]
+shap = ">=0.52"
 
 # Plotting and stats for `intruder.analysis`. Kept out of the default set
 # because the pipeline never draws anything, and matplotlib/scikit-learn are a
@@ -222,9 +299,21 @@ numpy = "<2"
 # The pipeline environments share one solve, so `analysis` and `notebooks` get
 # exactly the pandas and numpy the default environment has -- a plot and the
 # callset it was drawn from can never come from different builds.
-default = { features = ["dev"], solve-group = "pipeline" }
-analysis = { features = ["dev", "analysis"], solve-group = "pipeline" }
-notebooks = { features = ["dev", "analysis", "notebooks"], solve-group = "pipeline" }
+#
+# `default` carries every pipeline step's feature: a checkout is for working on
+# all of them, and `pixi run check` runs the whole suite. The features exist so
+# that something running *one* step -- a container, a cluster worker -- can ask
+# for one instead of all five.
+default = { features = ["dev", "sv", "compression", "search", "annotation"], solve-group = "pipeline" }
+analysis = { features = ["dev", "sv", "compression", "search", "annotation", "analysis"], solve-group = "pipeline" }
+notebooks = { features = ["dev", "sv", "compression", "search", "annotation", "analysis", "notebooks"], solve-group = "pipeline" }
+# `modeling` is the one environment outside the pipeline solve group, and it has
+# to be: shap's wheel requires llvmlite<0.46 on macOS x86_64, while the shared
+# solve pins llvmlite 0.49 for numba (umap-learn, in `analysis`). Solved on its
+# own it picks its own llvmlite and osx-64 resolves. It carries the step
+# features too, so `pixi run -e modeling pytest` runs the whole suite with the
+# modeling stack present.
+modeling = { features = ["dev", "sv", "compression", "search", "annotation", "modeling"] }
 # The dx scripts only ever call the `dx` CLI, so this one carries no pipeline.
 dx = { features = ["dx"], no-default-feature = true }
 frontend = { features = ["frontend"], no-default-feature = true }

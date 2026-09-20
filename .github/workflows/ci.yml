@@ -76,6 +76,28 @@ jobs:
       - name: Tests
         run: pixi run test-pipeline
 
+  modeling:
+    # `modeling` is solved outside the pipeline solve group (see pyproject.toml)
+    # and is not part of `default`, so the isolation-forest tests skip in the
+    # job above via `pytest.importorskip`. This job installs that environment
+    # and re-runs the suite so they actually execute somewhere -- untested code
+    # is not worth writing.
+    name: Python (modeling environment)
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: prefix-dev/setup-pixi@v0.10.2
+        with:
+          environments: modeling
+          locked: true
+          cache: true
+
+      - name: Tests
+        run: pixi run -e modeling pytest -q
+
   backend:
     name: Backend (lint + tests)
     needs: changes
