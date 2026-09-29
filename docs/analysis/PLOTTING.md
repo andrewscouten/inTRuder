@@ -36,7 +36,7 @@ insertion VCF (see [`scripts/merge-SV/`](../../scripts/merge-SV/) for how those 
 built):
 
 ```bash
-pixi run svpytrf -i <cohort>_multisample.INS.vcf -o <cohort>.trf.tsv
+pixi run trf find --format vcf <cohort>_multisample.INS.vcf <cohort>.trf.tsv
 pixi run novelty -i <cohort>.trf.tsv           -o <cohort>.trf.novelty.tsv
 pixi run filter  -i <cohort>.trf.novelty.tsv   -o data/plots/02_<cohort>.trf.noveltyFiltered.tsv
 ```

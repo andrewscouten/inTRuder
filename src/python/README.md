@@ -9,7 +9,10 @@ Everything lives under one installed package, `intruder`:
 
 ```
 src/python/intruder/
-├── trcore/       shared primitives — coordinates, motifs, downloads, repo paths
+├── trcore/       shared primitives
+│   ├── coords/motifs/flanks   the domain: what this project means by a repeat
+│   ├── io/          read sequence off disk — FASTA, VCF insertions, one record type
+│   └── utils/       infrastructure that knows nothing about repeats — parse, fetch
 ├── pipeline/     the pipeline steps
 │   ├── trf/         call repeats inside SV insertions, then filter the calls
 │   ├── novelty/     is this repeat absent from the reference and the catalogues?
@@ -71,7 +74,7 @@ pixi run lint-pipeline                # lint
 pixi run test-pipeline                # run tests
 
 # identify repeats using pyTRF from a multisample SV file
-pixi run svpytrf -i multisample.vcf -o trf_output.tsv
+pixi run trf find --format vcf multisample.vcf trf_output.tsv
 
 # annotate TRF output with novelty verdicts
 pixi run novelty -i trf_output.tsv -o trf_novelty.tsv

@@ -42,7 +42,7 @@ This is the primary contribution of the project — detecting TRs that fall with
 2. **02 – Assess novelty** — screen each candidate against reference TR catalogues (UCSC `simpleRepeat`, TRExplorer) and flag it `known`, `novel_motif` or `novel_locus`. *Implemented* — see [Novelty screen](tools/NOVELTY_SCREEN.md).
 3. **02B – Filter low-confidence calls** — drop insertions where TR content covers too little of the insertion or overlapping repeat calls disagree. *Planned, not yet a separate step* — filtering by purity/coverage currently happens inline in stage 01 (see below).
 
-**Implementation:** `src/python/intruder/pipeline/trf/sv_trfcaller.py` implements stage 01 — it takes an SV VCF as input, runs `pytrf.ATRFinder` on each sample's inserted sequence, takes repeat purity from the finder's own percent identity, and outputs a TSV of repeat calls per sample (chrom, position, motif, purity, repeat length, etc.). `src/python/intruder/pipeline/novelty` implements stage 02 as a CLI (`pixi run novelty ... annotate`) that takes that TSV and adds the novelty verdict column.
+**Implementation:** `src/python/intruder/pipeline/trf` implements stage 01 — `trf find` reads either an SV VCF's insertions or a reference FASTA's contigs through `trcore.io`, runs `pytrf.ATRFinder` over whichever it is handed, takes repeat purity from the finder's own identity, and outputs a TSV of repeat calls (see [docs/tools/trf.md](tools/trf.md)). `src/python/intruder/pipeline/novelty` implements stage 02 as a CLI (`pixi run novelty ... annotate`) that takes that TSV and adds the novelty verdict column.
 
 ## 3. Datasets & Validation
 
@@ -142,7 +142,7 @@ a TR catalogue BED. Stage 05 merges whichever of 02/03/04 ran with stage 01's ou
 
 | Stage | Process | Status |
 |---|---|---|
-| 01 Find TRs | `FIND_TRS` | Real — calls `sv_trfcaller.py` |
+| 01 Find TRs | `FIND_TRS` | Real — calls `trf find` |
 | 02 Novelty | `FIND_NOVEL` | Real — calls the `novelty` CLI |
 | 03a Preprocess | `PREPROCESS` | Real — calls `pipelines/sv_preprocess` from `feature/annotate-SV` |
 | 03b Annotate | `ANNOTATE` | Placeholder — real AnnotSV call not yet wired in |
