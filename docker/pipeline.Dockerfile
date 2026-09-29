@@ -32,11 +32,6 @@ RUN pixi install --locked --environment default \
 # that needs activating is a container whose commands are not found.
 ENV PATH=/app/.pixi/envs/default/bin:$PATH
 
-# Bundle sv_trfcaller.py at a stable, simple path for FIND_TRS to call
-# (in addition to it already being installed as part of the novelty
-# package above).
-COPY src/python/intruder/pipeline/trf/sv_trfcaller.py /opt/scripts/sv_trfcaller.py
-
 # Bundle normalize_svtype.py (from the annotation team's sv_preprocess
 # pipeline - not yet merged to their main branch, so this is a local
 # copy for now) for the PREPROCESS process to call directly. It's pure
@@ -44,11 +39,9 @@ COPY src/python/intruder/pipeline/trf/sv_trfcaller.py /opt/scripts/sv_trfcaller.
 # dependencies are needed for it.
 COPY pipelines/sv_preprocess/scripts/normalize_svtype.py /opt/scripts/normalize_svtype.py
 
-# Bundle filter_ins_trf.py (from the teammate who built the 02B
-# filtering stage) for the FILTER_BY_COVERAGE process to call directly.
-# It's pure standard-library Python (no external dependencies), so no
-# extra packages are needed for it.
-COPY src/python/intruder/pipeline/trf/filter_ins_trf.py /opt/scripts/filter_ins_trf.py
+# Stage 01 and 02B are no longer bundled as loose scripts: they are the
+# `trf` console script, installed with the package above and on PATH like
+# `novelty`. FIND_TRS and FILTER_BY_COVERAGE call it by name.
 
 # --- Pre-bake novelty's reference catalogs (UCSC simpleRepeat ~30MB,
 # TRExplorer ~45MB) at build time, so runs never need network access
