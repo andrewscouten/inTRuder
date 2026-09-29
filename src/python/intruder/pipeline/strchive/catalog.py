@@ -36,8 +36,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from intruder.trcore.coords import interval_distance, normalize_chrom
-from intruder.trcore.fetch import cache_root, download_bytes
 from intruder.trcore.motifs import MotifEquivalence, canonical_motif
+from intruder.trcore.utils.fetch import cache_root, download_bytes
 
 #: How this step decides two motifs are the same repeat.
 #:
@@ -72,7 +72,7 @@ CACHE_ENV = "STRCHIVE_CACHE"
 
 
 def default_cache() -> Path:
-    """Where the downloaded catalog lands -- see :func:`trcore.fetch.cache_root`.
+    """Where the downloaded catalog lands -- see :func:`trcore.utils.fetch.cache_root`.
 
     Inside a checkout that is ``data/reference/strchive/``, beside the catalogues
     the novelty screen downloads; outside one it falls back to the user cache.

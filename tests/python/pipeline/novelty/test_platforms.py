@@ -229,12 +229,12 @@ def test_the_cache_env_var_wins(monkeypatch, tmp_path):
 def test_default_cache_falls_back_under_the_step_name(monkeypatch, tmp_path):
     """Installed outside a checkout there is no data/ to write into.
 
-    The rule itself is :func:`trcore.fetch.cache_root` and is tested there; what
+    The rule itself is :func:`trcore.utils.fetch.cache_root` and is tested there; what
     this pins is the name *this* step falls back to, which is part of its own
     contract.
     """
     from intruder.pipeline.novelty import platforms
-    from intruder.trcore import fetch
+    from intruder.trcore.utils import fetch
 
     monkeypatch.delenv(platforms.CACHE_ENV, raising=False)
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))

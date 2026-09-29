@@ -42,7 +42,13 @@ from .catalog import (
     RepeatFilter,
     Verdict,
 )
-from .insertions import Check, add_insertion_purity, filter_reasons, union_length
+from .insertions import (
+    Check,
+    add_insertion_purity,
+    coverage_fractions,
+    filter_reasons,
+    union_length,
+)
 from .platforms import (
     ANNOTATION_COLUMNS,
     CACHE_ENV,
@@ -82,6 +88,7 @@ __all__ = [
     "add_insertion_purity",
     "canonical_motif",
     "canonical_motifs",
+    "coverage_fractions",
     "default_cache",
     "edit_budget",
     "ensure_table",

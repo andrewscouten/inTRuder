@@ -56,13 +56,13 @@ import numpy as np
 import pandas as pd
 
 from intruder.trcore.coords import normalize_chrom
-from intruder.trcore.fetch import cache_root, download_file
 from intruder.trcore.motifs import (
     DEFAULT_EQUIVALENCE,
     MotifEquivalence,
     canonical_motif,
 )
 from intruder.trcore.paths import repo_root
+from intruder.trcore.utils.fetch import cache_root, download_file
 
 # The normalised schema every reader produces.
 CATALOG_COLUMNS = ("chrom", "start", "end", "motif")
@@ -79,7 +79,7 @@ CACHE_ENV = "NOVELTY_CACHE"
 
 
 def default_cache() -> Path:
-    """Where downloaded catalogues live -- see :func:`trcore.fetch.cache_root`.
+    """Where downloaded catalogues live -- see :func:`trcore.utils.fetch.cache_root`.
 
     ``NOVELTY_CACHE`` overrides it; each platform gets its own subdirectory
     below, so the STRchive step can share ``data/reference/`` without collision.

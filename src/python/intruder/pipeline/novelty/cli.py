@@ -10,7 +10,7 @@ installing anything. Paths below are relative to the repo root.
     # one locus
     pixi run novelty query --chrom chr1 --pos 10772 --motif GC
 
-    # the whole sv_trfcaller.py table, against both catalogues
+    # the whole `trf find` table, against both catalogues
     pixi run novelty --platform ucsc,trexplorer annotate \\
         data/sv_output/survivor_multi_sample_vcf/first_500_INS.trf.tsv \\
         data/sv_output/survivor_multi_sample_vcf/first_500_INS.novelty.tsv
@@ -752,8 +752,8 @@ def _validate_checks(checks: list[Check], frame: pd.DataFrame, base: pd.DataFram
 # --------------------------------------------------------------------------- #
 
 def _add_table_args(parser: argparse.ArgumentParser) -> None:
-    """Options describing the sv_trfcaller.py table, shared by annotate and sweep."""
-    parser.add_argument("input", help="TSV from sv_trfcaller.py")
+    """Options describing the stage 01 call table, shared by annotate and sweep."""
+    parser.add_argument("input", help="TSV from `trf find`")
     parser.add_argument("--chrom-col", default="chrom")
     parser.add_argument("--pos-col", default="ins_coord",
                         help="reference coordinate of the insertion "
@@ -764,11 +764,17 @@ def _add_table_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--no-insertion-purity", dest="insertion_purity",
                         action="store_false",
                         help="skip the per-insertion purity columns")
+    # Spelled out rather than imported, like every other stage 01 column name
+    # defaulted here: steps talk to each other through files, not imports. It
+    # must stay identical to `pipeline.trf.filters.INSERTION_KEYS`, which
+    # documents why `insert_size` is one of the columns -- the two steps compute
+    # the same coverage fraction over the same table, so a grouping only one of
+    # them applies is a row they disagree about while both look right.
     parser.add_argument("--insertion-key", metavar="COLS",
-                        default=["chrom", "ins_coord", "SVID", "sample"],
+                        default=["chrom", "ins_coord", "SVID", "sample", "insert_size"],
                         type=lambda v: [c.strip() for c in v.split(",") if c.strip()],
                         help="comma-separated columns identifying one insertion "
-                             "(default: chrom,ins_coord,SVID,sample)")
+                             "(default: chrom,ins_coord,SVID,sample,insert_size)")
     parser.add_argument("--rep-start-col", default="rep_start")
     parser.add_argument("--rep-end-col", default="rep_end")
     parser.add_argument("--insert-size-col", default="insert_size")
@@ -842,7 +848,7 @@ def build_parser() -> argparse.ArgumentParser:
     query.set_defaults(func=_cmd_query)
 
     annotate = sub.add_parser("annotate",
-                              help="screen every row of an sv_trfcaller.py TSV")
+                              help="screen every row of a `trf find` TSV")
     _add_table_args(annotate)
     annotate.add_argument("output", help="annotated TSV to write")
     annotate.add_argument("--drop-filtered", action="store_true",

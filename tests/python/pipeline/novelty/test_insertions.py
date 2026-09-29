@@ -124,3 +124,27 @@ def test_the_threshold_is_inclusive():
 def test_filtering_on_a_column_that_is_not_there_says_so():
     with pytest.raises(KeyError, match="purity"):
         filter_reasons(pd.DataFrame({"a": [1]}), [("purity", "low_purity", 0.8)])
+
+
+def test_insertion_purity_rounds_a_tie_the_way_trf_does():
+    """308 bases of a 320 bp insertion: the row the two steps used to split on.
+
+    `numpy.round` took 0.9625 to 0.962 while `trf.filters.add_repeat_coverage`
+    took it to 0.963, so the same insertion sat on different sides of the same
+    threshold depending on which column a query read. Both now round the exact
+    ratio in integer arithmetic; `tests/python/trcore/test_coords.py` pins this
+    one to the scalar definition.
+    """
+    frame = pd.DataFrame({"svid": ["A"], "rep_start": [0], "rep_end": [308],
+                          "insert_size": [320]})
+    out = add_insertion_purity(frame, keys=["svid"])
+    assert out.insertion_purity.iloc[0] == 0.963
+
+
+def test_a_missing_size_leaves_the_purity_missing():
+    """Not a coverage of zero: zero fails every threshold, missing is judged by none."""
+    frame = pd.DataFrame({"svid": ["A", "B"], "rep_start": [0, 0],
+                          "rep_end": [50, 50], "insert_size": ["", 100]})
+    out = add_insertion_purity(frame, keys=["svid"])
+    assert out.insertion_purity.iloc[0] is pd.NA
+    assert out.insertion_purity.iloc[1] == 0.5
