@@ -74,7 +74,7 @@ screen's output carries all of them except `gene`.
 
 Rename any of them with `--col-chrom`, `--col-pos`, `--col-motif`,
 `--col-rep-units`, `--col-gene`, `--col-label`. Numeric cells may be bare (`138`)
-or bracketed (`[138]`, `[0 0]`) as `sv_trfcaller.py` writes them.
+or bracketed (`[138]`, `[0 0]`) as `trf find` writes them.
 
 ## Options
 

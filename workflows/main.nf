@@ -53,15 +53,14 @@ process FIND_TRS {
     path "trf_output.tsv"
 
     script:
-    // Calls the copy of sv_trfcaller.py baked into the Docker image at
-    // build time (see docker/pipeline.Dockerfile's COPY instruction) - NOT the host
-    // filesystem copy in src/python/. This only resolves correctly
-    // when run with -profile docker.
+    // `trf` is the installed console script, on PATH in the image the same
+    // way `novelty` is - no bundled copy to keep in step with src/python.
     //
-    // sv_trfcaller.py takes POSITIONAL args, not flags:
-    //   python sv_trfcaller.py <input.vcf> <output.tsv>
+    // --format vcf is explicit rather than sniffed: Nextflow stages inputs
+    // under its own names, and a staged file without a .vcf suffix would be
+    // refused rather than guessed at.
     """
-    python3 /opt/scripts/sv_trfcaller.py -i ${vcf_file} -o trf_output.tsv
+    trf find --format vcf ${vcf_file} trf_output.tsv
     """
 }
 
@@ -150,13 +149,19 @@ process FILTER_BY_COVERAGE {
     path "novelty_filtered.stats.tsv", emit: stats
 
     script:
+    // --filter none, then coverage alone, rather than the `ins` preset: that
+    // preset also sets a purity floor, and FIND_NOVEL above deliberately
+    // declines one on the grounds that interrupted repeats are real biology.
+    // The old call said the same thing by passing --min-depth 0.
+    //
+    // `repeat_coverage` is now the union of the calls over an insertion, not
+    // the sum, so this threshold finally means what this process's header
+    // says it does -- overlapping calls used to push the fraction past 1.
     """
-    python3 /opt/scripts/filter_ins_trf.py \
-        -i ${novelty_tsv} \
-        -o novelty_filtered.tsv \
+    trf filter ${novelty_tsv} novelty_filtered.tsv \
         -s novelty_filtered.stats.tsv \
-        --min-repeat-coverage 0.8 \
-        --min-depth 0
+        --filter none \
+        --min-coverage 0.8
     """
 }
 

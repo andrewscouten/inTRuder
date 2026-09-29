@@ -17,6 +17,17 @@ all the TRF calls belonging to one insertion. The union matters: TRF happily
 reports overlapping calls for the same stretch of sequence (one insertion in the
 sample data carries 64 of them), so adding up ``rep_length`` double-counts bases
 and can push "purity" well past 1.
+
+``pipeline.trf.filters`` computes that same fraction over the same table, one
+stage earlier and through :mod:`csv` rather than pandas, and writes it as
+``repeat_coverage``. The two columns are compared against the same thresholds,
+so the arithmetic is shared rather than restated: the union sweep here is the
+vectorised form of :func:`trcore.coords.union_length`, and the division and
+rounding are :func:`trcore.coords.coverage_fraction`, reproduced in int64 by
+:func:`coverage_fractions` below. Both wrappers are pinned to their scalar
+definitions by agreement tests, because these two columns disagreeing on a row
+is not a rounding difference -- it is the pipeline keeping or dropping that row
+depending on which stage was asked.
 """
 
 from __future__ import annotations
@@ -97,11 +108,49 @@ def add_insertion_purity(frame: pd.DataFrame, *, keys: Sequence[str],
     bases = union_length(out, keys, start_col, end_col)
     size = parse_sizes(out[size_col])
     out["insertion_repeat_bases"] = bases.astype("Int64")
-    purity = bases.astype("Float64") / size.astype("Float64")
-    # TRF can call a repeat that runs past the reported insert size; cap at 1 so
-    # the column stays a fraction, but leave a missing size missing.
-    out["insertion_purity"] = purity.clip(upper=1.0).round(3)
+    out["insertion_purity"] = coverage_fractions(bases, size)
     return out
+
+
+def coverage_fractions(covered, size, *, digits: int = 3) -> pd.Series:
+    """Vectorised :func:`trcore.coords.coverage_fraction` over two integer columns.
+
+    The scalar form is the definition and this is the wrapper, the arrangement
+    :func:`union_length` and :func:`parse_sizes` already have -- a screen over a
+    586 MB callset cannot afford a Python call per row, and ``trf`` filtering
+    the same table with :mod:`csv` cannot afford pandas.
+
+    Which means the two have to round identically, and as floats they did not:
+    308 bases of a 320 bp insertion is 0.9625, which ``round`` takes to 0.963
+    and ``numpy.round`` to 0.962, because one rounds the decimal value of a
+    double lying just above the tie and the other scales and rounds half to
+    even. One row of every callset in ``data/sv_output`` landed on it, and the
+    row's ``insertion_purity`` and its ``repeat_coverage`` then disagreed while
+    both looked right. So the ratio is never formed as a float on either side:
+    this is the scalar's exact integer expression in int64.
+
+    Two tests hold it there rather than a comment claiming it.
+    ``tests/python/trcore/test_coords.py`` enumerates every third-decimal tie up
+    to a denominator of 200 and checks both implementations against the scalar
+    definition; ``tests/python/pipeline/trf/test_real_data.py`` compares the two
+    columns row for row over both bundled callsets, through the CLI that writes
+    them. The second is the one that would have caught this: a tie needs a
+    numerator and denominator no hand-written fixture has a reason to pick.
+
+    A missing size gives a missing fraction -- the absence of a measurement, not
+    a coverage of zero.
+    """
+    scale = 10 ** digits
+    covered = pd.Series(covered).astype("Int64")
+    size = pd.Series(size).astype("Int64")
+    usable = covered.notna() & size.notna() & (size > 0) & (covered >= 0)
+
+    numerator = 2 * covered.where(usable, 0).astype("int64") * scale
+    denominator = 2 * size.where(usable, 1).astype("int64")
+    scaled = (numerator + size.where(usable, 1).astype("int64")) // denominator
+
+    fraction = (scaled.astype("Float64") / scale).clip(upper=1.0)
+    return fraction.where(usable, pd.NA)
 
 
 def filter_reasons(frame: pd.DataFrame, checks: Sequence[Check]) -> pd.Series:

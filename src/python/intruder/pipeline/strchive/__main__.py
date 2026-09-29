@@ -25,7 +25,7 @@ from pathlib import Path
 from .catalog import BUILDS, STRCHIVE_VERSION, Catalog, fetch
 from .compare import OUTPUT_COLUMNS, Query, as_row, compare
 
-# Column names as emitted by sv_trfcaller.py, overridable per run so this step
+# Column names as emitted by `trf find`, overridable per run so this step
 # does not care what the upstream filter chooses to call things.
 DEFAULTS = {
     "chrom": "chrom",

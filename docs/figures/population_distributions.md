@@ -28,7 +28,7 @@ Values at or above 3000bp are pooled into the `3000+` bucket the same way (1,583
 
 ## Purity
 
-Median purity by class is in the summary table above. This matters for interpreting the purity filter used downstream (`src/python/filter/filter_ins_trf.py`, min purity 0.7): the shape of each class's distribution near that threshold determines how much of it survives filtering, not just the median.
+Median purity by class is in the summary table above. This matters for interpreting the purity filter used downstream (`trf filter --filter ins`, min purity 0.7): the shape of each class's distribution near that threshold determines how much of it survives filtering, not just the median.
 
 ![Purity by novelty class](assets/population_distributions/purity.png)
 

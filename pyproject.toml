@@ -8,14 +8,15 @@ requires-python = ">=3.11"
 # subsystem needs belongs in a pixi feature instead (see [tool.pixi] below), so
 # a plain `pixi install` stays small enough to build on a laptop.
 #
-# What is left here is what *every* step needs: the repeat finder, the tables
-# the steps pass between each other, and a progress bar. Everything else is
-# imported by exactly one module, so it is an extra below.
+# What is left here is what every step needs to pass a *table* to the next one,
+# and nothing that reads or writes sequence. The repeat finder and both parsers
+# are extras: a step that screens an existing call table against a catalogue has
+# no reason to build htslib, and `pip install intruder` should not either.
 #
 # `parasail` is not here and is not an extra: nothing in the repository imports
 # it. docs/Methods_overview.md said stage 01 scored purity with it, but purity
 # has always come from pytrf's own `repeat.identity`
-# (pipeline/trf/sv_trfcaller.py), so the dependency only ever cost the C build
+# (pipeline/trf/find.py), so the dependency only ever cost the C build
 # in docker/pipeline.Dockerfile.
 #
 # These are the floors the package declares. [tool.pixi.dependencies] names the
@@ -23,16 +24,15 @@ requires-python = ">=3.11"
 dependencies = [
     "numpy>=2.0",
     "pandas>=3.0.5",
-    "pytrf>=1.5.0",
     "tqdm>=4.70.0",
 ]
 
 [project.scripts]
-# `pixi run novelty ...` etc. from anywhere in the repo. Most command names are
-# unchanged from before the move -- only the module paths behind them shift, so
-# nobody's notes or Nextflow process bodies break.
-svpytrf          = "intruder.pipeline.trf.sv_trfcaller:main"
-filter           = "intruder.pipeline.trf.filter_ins_trf:main"
+# `pixi run novelty ...` etc. from anywhere in the repo. `trf` replaces the
+# `svpytrf` and `filter` commands: the two scripts behind them became one
+# package with `find` and `filter` subcommands, since the only thing separating
+# them was which file format the sequence arrived in.
+trf              = "intruder.pipeline.trf.cli:main"
 novelty          = "intruder.pipeline.novelty.cli:main"
 strchive         = "intruder.pipeline.strchive.__main__:main"
 compression      = "intruder.pipeline.compression.annotate:main"
@@ -43,8 +43,28 @@ isolation-forest = "intruder.modeling.unsupervised.isolation_forest.cli:main"
 # `default` environment combines all of them -- the split is what lets a
 # container install the one step it runs instead of all five.
 [project.optional-dependencies]
-# `intruder.pipeline.trf.sv_trfcaller`: the only step that reads a VCF.
+# `intruder.pipeline.trf.find`: the repeat finder itself. An extra rather than a
+# base dependency because it is the only thing that scans sequence -- `novelty`,
+# `strchive` and the isolation forest all start from a call table someone else
+# produced, and none of them should have to build it.
+trf = ["pytrf>=1.5.0"]
+
+# `intruder.trcore.io.vcf`, and the steps that read insertions through it.
 sv = ["cyvcf2>=0.34.0"]
+
+# `intruder.trcore.io.fasta`: reading reference sequence.
+#
+# Declared because `trcore.io.fasta` imports pyfastx directly -- a package
+# should name what it imports. Note it is not an independent gate: bioconda's
+# pytrf depends on `pyfastx >=2.1` (`pixi tree --invert pyfastx`), so anything
+# with the `trf` extra has pyfastx whether or not this one is asked for. What
+# this extra buys is a FASTA reader without the finder, which is what
+# `trcore.io` alone supports.
+#
+# The import in `trcore.io.fasta` is still deferred to call time, like the
+# cyvcf2 one, so the two readers stay symmetric and `import intruder.trcore.io`
+# holds even in an environment that somehow has neither.
+fasta = ["pyfastx>=2.3.1"]
 
 # `intruder.pipeline.compression`: the only step that needs pysam. It has no
 # Windows wheel and requires a C build toolchain, so a plain install should not
@@ -79,7 +99,7 @@ build-backend = "hatchling.build"
 #   intruder.pipeline   the pipeline steps
 #   intruder.analysis   post-hoc analysis of their output
 # It replaces the five bare top-level packages that were installed before
-# (trcore, novelty, strchive, svpytrf, filter).
+# (trcore, novelty, strchive, trf).
 # It is installed editable, so edits take effect without reinstalling. A single
 # owned top-level name is deliberate -- `pipeline` or `analysis` on their own
 # would collide with real packages in site-packages.
@@ -108,7 +128,6 @@ pythonpath = ["src/python"]
 # in someone else's module inside a layout PR hides the change. The blind `except`
 # is load-bearing while the annotator's input format is still settling.
 "src/python/intruder/pipeline/annotation/lps_annotate.py" = ["BLE001"]
-"src/python/intruder/pipeline/trf/sv_trfcaller.py" = ["SIM115"]
 
 
 # --------------------------------------------------------------------------- #
@@ -162,7 +181,6 @@ platforms = ["linux-64", "osx-64", "osx-arm64"]
 python = "3.13.*"
 numpy = "*"
 pandas = "*"
-pytrf = "*"
 tqdm = "*"
 
 # `intruder` installed editable from src/python, so edits take effect without
@@ -185,8 +203,19 @@ pytest = ">=8"
 # [project.optional-dependencies]. Splitting them is what lets an image install
 # the step it runs: docker/pipeline.Dockerfile builds `default`, so without this
 # every container carries all of them no matter which process Nextflow starts.
+[tool.pixi.feature.trf.dependencies]
+pytrf = "*"
+
 [tool.pixi.feature.sv.dependencies]
 cyvcf2 = "*"
+
+# Named to match the `fasta` extra, and equally redundant: bioconda's pytrf
+# already depends on `pyfastx >=2.1`, so every environment below has it whether
+# or not this feature is listed. It exists so that the feature names and the
+# extra names stay one-to-one, and so a future pytrf that stops pulling pyfastx
+# does not silently break every FASTA read.
+[tool.pixi.feature.fasta.dependencies]
+pyfastx = "*"
 
 [tool.pixi.feature.search.dependencies]
 optuna = "*"
@@ -300,20 +329,25 @@ numpy = "<2"
 # exactly the pandas and numpy the default environment has -- a plot and the
 # callset it was drawn from can never come from different builds.
 #
-# `default` carries every pipeline step's feature: a checkout is for working on
-# all of them, and `pixi run check` runs the whole suite. The features exist so
-# that something running *one* step -- a container, a cluster worker -- can ask
-# for one instead of all five.
-default = { features = ["dev", "sv", "compression", "search", "annotation"], solve-group = "pipeline" }
-analysis = { features = ["dev", "sv", "compression", "search", "annotation", "analysis"], solve-group = "pipeline" }
-notebooks = { features = ["dev", "sv", "compression", "search", "annotation", "analysis", "notebooks"], solve-group = "pipeline" }
+# `default` carries no sequence reader and no finder. Reading a FASTA or a VCF
+# is opt-in, so `pixi install` builds nothing that needs htslib and the import
+# guards in `trcore.io` are reachable rather than decorative -- which is the
+# only way "this needs cyvcf2" can ever actually be said out loud.
+#
+# `pipeline` is the working environment: every step's feature, and the one the
+# full test suite runs in. The step features exist so that something running
+# *one* step -- a container, a cluster worker -- can ask for one instead of all.
+default = { features = ["dev"], solve-group = "pipeline" }
+pipeline = { features = ["dev", "trf", "sv", "fasta", "compression", "search", "annotation", "suite"], solve-group = "pipeline" }
+analysis = { features = ["dev", "trf", "sv", "fasta", "compression", "search", "annotation", "analysis"], solve-group = "pipeline" }
+notebooks = { features = ["dev", "trf", "sv", "fasta", "compression", "search", "annotation", "analysis", "notebooks"], solve-group = "pipeline" }
 # `modeling` is the one environment outside the pipeline solve group, and it has
 # to be: shap's wheel requires llvmlite<0.46 on macOS x86_64, while the shared
 # solve pins llvmlite 0.49 for numba (umap-learn, in `analysis`). Solved on its
 # own it picks its own llvmlite and osx-64 resolves. It carries the step
 # features too, so `pixi run -e modeling pytest` runs the whole suite with the
 # modeling stack present.
-modeling = { features = ["dev", "sv", "compression", "search", "annotation", "modeling"] }
+modeling = { features = ["dev", "trf", "sv", "fasta", "compression", "search", "annotation", "modeling"] }
 # The dx scripts only ever call the `dx` CLI, so this one carries no pipeline.
 dx = { features = ["dx"], no-default-feature = true }
 frontend = { features = ["frontend"], no-default-feature = true }
@@ -339,7 +373,6 @@ lint = { depends-on = ["lint-pipeline", "lint-backend", "lint-frontend"] }
 test = { depends-on = ["test-pipeline", "test-backend"] }
 
 lint-pipeline = "ruff check src/python tests/python"
-test-pipeline = "pytest -q"
 
 # Backend and frontend together. Ctrl-C stops both.
 dev = "pixi run backend & pixi run frontend & wait"
@@ -347,6 +380,14 @@ dev = "pixi run backend & pixi run frontend & wait"
 # Download the shared Drive tables (750 MiB) into data/plots. `--list` first to
 # see what is missing; `--only 02_` for just the novelty-filtered pair.
 plot-data = "scripts/fetch_plot_data.sh"
+
+# Carried by `pipeline` alone, so `pixi run test-pipeline` has exactly one
+# environment to mean and needs no `-e`. Deliberately not a top-level task: in
+# `default` the suite would still pass, because every test needing a parser is
+# an importorskip, while testing a good deal less. A green run that quietly
+# covered less is the failure mode worth designing out.
+[tool.pixi.feature.suite.tasks]
+test-pipeline = "pytest -q"
 
 [tool.pixi.feature.backend.tasks]
 setup-backend = { cwd = "backend", cmd = "test -f .env || cp .env.example .env", depends-on = ["demo-data"] }

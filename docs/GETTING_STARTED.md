@@ -70,7 +70,7 @@ placeholders is tracked in the
 Each step is also a standalone CLI, file in and file out, so nothing forces you through Nextflow:
 
 ```bash
-pixi run svpytrf -i multisample.vcf -o trf.tsv                    # 01  TRs inside inserted alleles
+pixi run trf find --format vcf multisample.vcf trf.tsv           # 01  TRs inside inserted alleles
 pixi run novelty --platform ucsc,trexplorer annotate trf.tsv trf.novelty.tsv   # 02  known or novel?
 ```
 

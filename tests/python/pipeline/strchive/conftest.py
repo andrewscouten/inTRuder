@@ -23,7 +23,7 @@ from intruder.pipeline.strchive.catalog import Catalog
 #: Catalogues are data, so the fixture lives under ``data/`` with the rest of it
 #: rather than beside the tests -- the same move the pathogenic TRGT catalogue
 #: made to ``data/novelty/``. Resolved from the repo root the way
-#: :func:`trcore.fetch.cache_root` does: tests/python/strchive -> repo.
+#: :func:`trcore.utils.fetch.cache_root` does: tests/python/strchive -> repo.
 FIXTURE = Path(__file__).resolve().parents[4] / "data" / "strchive" / "STRchive-loci.mini.json"
 
 

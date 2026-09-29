@@ -1,7 +1,7 @@
 # Novelty screen (`novelty`)
 
 **Screens the tandem repeats that
-[`sv_trfcaller.py`](../../src/python/intruder/pipeline/trf/sv_trfcaller.py) found inside SV insertions
+[`trf find`](trf.md) found inside SV insertions
 against reference TR catalogues, and reports which ones the reference does not
 already contain.**
 
@@ -86,7 +86,7 @@ are compared.
 | `--drop-filtered` | off | write only rows that pass every filter. Without it, all rows are kept and tagged |
 | `--metrics PATH` | off | also append a one-row summary, in the layout `sweep` writes |
 | `--chrom-col`, `--pos-col`, `--motif-col`, `--purity-col`, `--rep-start-col`, `--rep-end-col`, `--insert-size-col` | the names below | the input column names the tool reads |
-| `--insertion-key COLS` | `chrom,ins_coord,SVID,sample` | which columns identify one insertion, for [insertion purity](#insertion-purity) |
+| `--insertion-key COLS` | `chrom,ins_coord,SVID,sample,insert_size` | which columns identify one insertion, for [insertion purity](#insertion-purity) |
 | `--no-insertion-purity` | off | skip the insertion-purity columns entirely |
 
 ### Motif equivalence
@@ -144,7 +144,7 @@ screen across several filter settings. Rows are tagged rather than dropped unles
 
 Note the two different scales. `--min-reference-identity` is a percentage,
 because UCSC records identity that way. `--min-purity` is a fraction, because
-`sv_trfcaller.py` writes it that way.
+`trf find` writes it that way.
 
 ## Input columns
 
@@ -158,7 +158,7 @@ unchanged; several are used by the row filters.
 | `ins_coord` | reference position the insertion sits after, 1-based | `10772` |
 | `SVID` | the caller's variant ID | `Sniffles2.INS.2S0` |
 | `depth` | VCF depth field, copied verbatim including brackets | `[0 0]` |
-| `insert_size` | length of the inserted sequence; the first integer is used | `[138]` |
+| `insert_size` | length of the inserted sequence `rep_start`/`rep_end` index — the `ALT` that was scanned, not the declared `SVLEN`; the first integer is used | `138` |
 | `sample` | the genome this call came from | `HG00597` |
 | `rep_start`, `rep_end` | the repeat's span **inside the insertion**, not in the genome | `1`, `68` |
 | `motif` | the repeat unit TRF reported | `GC` |
@@ -316,6 +316,14 @@ mobile-element insertions carrying a poly-A tail.
 It is the **union** of the TRF intervals over `insert_size`, not their sum. TRF
 reports overlapping calls over the same sequence (one insertion in the sample
 data has 64), so summing `rep_length` double-counts and can exceed 1.
+
+`insert_size` is part of `--insertion-key` because it is the denominator this
+union is the numerator of. A merged callset need not give one insertion one ID:
+SURVIVOR writes 257 duplicate `SVID`s into the sample data, and a 441 bp and a
+2809 bp insertion share a `CHROM`, `POS` and `ID` at chr1:3502017. Grouped
+together, offsets measured in the long one are divided by the short one's
+length. The key must stay identical to `pipeline.trf.filters.INSERTION_KEYS`,
+which computes the same fraction at the filter step.
 
 ## Combining platforms
 
