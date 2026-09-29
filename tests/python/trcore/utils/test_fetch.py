@@ -14,8 +14,8 @@ from pathlib import Path
 
 import pytest
 
-from intruder.trcore import fetch
-from intruder.trcore.fetch import cache_root, download_bytes, download_file
+from intruder.trcore.utils import fetch
+from intruder.trcore.utils.fetch import cache_root, download_bytes, download_file
 
 # --------------------------------------------------------------------------- #
 # where the cache lands
