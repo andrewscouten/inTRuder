@@ -17,8 +17,15 @@ knowing before either is tuned: a seed has to clear both, so the units a motif
 actually needs is ``max(min_seed_units, ceil(min_seed_length / motif_length))``
 -- see :meth:`FinderParams.effective_min_units`. Below
 :attr:`FinderParams.seed_units_bind_from` the length floor is what binds and
-``min_seed_units`` does nothing at all, silently. A grid that moves the two
-separately therefore has points that differ in name only.
+``min_seed_units`` does nothing at all, silently.
+
+That makes the two floors partition motif length between them rather than
+compete over one yield: moving ``min_seed_units`` changes nothing below the
+crossover and everything above it, while ``min_seed_length`` moves the short
+motifs that a bacterial genome is mostly made of. Two grid points that differ
+only in ``min_seed_units`` are therefore identical for every motif shorter than
+``seed_units_bind_from`` and genuinely different above it -- not, as it is
+tempting to conclude from the arithmetic alone, points that differ in name only.
 
 None of these are settled values. They are hyperparameters with no ground
 truth to optimise against, which is the same position ``novelty`` is in with
@@ -175,6 +182,17 @@ SV = FinderParams(
 # 15%, 10 -> 8 by about eightfold, 8 -> 6 by about ninefold again as
 # dinucleotides come in. So the two seed settings are one choice, as
 # `max_extension` and `min_identity` are, and a grid has to move them together.
+#
+# Together, though, is not interchangeably: each governs a motif-length band the
+# other cannot reach. Holding identity at 0.8 and the floor at 12, dropping
+# `min_seed_units` to 2 takes the mock community from 7775 loci to 15167, and by
+# the arithmetic above every one of those ~7400 additions carries a motif of 6 bp
+# or more -- against the 1387 such loci the profile finds at 3 units, so a
+# sixfold expansion of the VNTR-length class alone, nothing else touched. Whether
+# those are loci the project can use is a separate question from how many there
+# are: a 6 bp motif twice over is a 12 bp seed, and an allele-length estimator
+# has nothing to measure at two units. That is what the sweep's `units_2` column
+# is for.
 GENOME = FinderParams(
     max_motif=100,
     min_seed_length=12,
