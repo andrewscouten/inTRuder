@@ -12,6 +12,14 @@ being six defaults on an argument parser that every caller silently inherits.
     sv        VCF insertions, corrected -- see the note above :data:`SV`
     genome    provisional, for whole-contig FASTA scans
 
+``min_seed_units`` and ``min_seed_length`` are not independent, which is worth
+knowing before either is tuned: a seed has to clear both, so the units a motif
+actually needs is ``max(min_seed_units, ceil(min_seed_length / motif_length))``
+-- see :meth:`FinderParams.effective_min_units`. Below
+:attr:`FinderParams.seed_units_bind_from` the length floor is what binds and
+``min_seed_units`` does nothing at all, silently. A grid that moves the two
+separately therefore has points that differ in name only.
+
 None of these are settled values. They are hyperparameters with no ground
 truth to optimise against, which is the same position ``novelty`` is in with
 its screen thresholds: the useful move there was to enumerate a grid and see
@@ -76,6 +84,35 @@ class FinderParams:
             "max_extend": self.max_extension,
         }
 
+    def effective_min_units(self, motif_length: int) -> int:
+        """Units a motif of ``motif_length`` bp actually needs to seed.
+
+        The finder applies ``min_seedrep`` and ``min_seedlen`` together, so the
+        binding constraint is whichever asks for more. A trinucleotide under
+        ``min_seed_units=3, min_seed_length=12`` needs four units, not three:
+        three would be a 9 bp seed and the length floor rejects it. Checked
+        against ``ATRFinder`` -- a CAG tract of exactly three units is returned
+        at ``min_seed_length`` 9 and below, and not at 10 or 12.
+
+        This is why lowering ``min_seed_length`` moves the yield in steps rather
+        than smoothly: nothing changes until the floor drops below the next
+        whole number of units.
+        """
+        if motif_length < 1:
+            raise ValueError(f"motif_length must be at least 1, got {motif_length}")
+        return max(self.min_seed_units, -(-self.min_seed_length // motif_length))
+
+    @property
+    def seed_units_bind_from(self) -> int:
+        """Shortest motif for which ``min_seed_units`` is the binding constraint.
+
+        At or above this motif length ``min_seed_units`` decides; below it the
+        length floor does, and changing ``min_seed_units`` has no effect. For the
+        :data:`GENOME` profile this is 4, so the setting is inert for exactly the
+        mono-, di- and trinucleotide repeats that dominate a bacterial genome.
+        """
+        return -(-self.min_seed_length // self.min_seed_units)
+
     def replace(self, **overrides) -> FinderParams:
         """A copy with ``overrides`` applied, ignoring the ones that are ``None``.
 
@@ -124,6 +161,20 @@ SV = FinderParams(
 # synced contaminant and HMP reference genomes -- see the parameter-profile item
 # in docs/todo.md in the parent project -- so it stays small, stays provisional,
 # and the CLI exposes it.
+# `min_seed_length=12` is the setting with the most evidence against it, and it is
+# the one to revisit first. With `min_seed_units=3` it puts `seed_units_bind_from`
+# at 4, so the unit floor is inert for every mono-, di- and trinucleotide repeat --
+# a trinucleotide needs four units to clear 12 bp, not the three the profile asks
+# for. Measured on the HMP mock community (22 genomes): the 21 bacteria and archaea
+# yield 391 loci in total, a median of 16 each, and the shortest call in the whole
+# catalog is exactly 12 bp -- the floor itself, not a property of the genomes. The
+# one eukaryote in the set, C. albicans, then supplies 95% of the calls.
+#
+# Dropping the floor to 9 is what admits a 3-unit trinucleotide, and the yield
+# moves in steps at exactly those boundaries: 12 -> 10 changes bacterial loci by
+# 15%, 10 -> 8 by about eightfold, 8 -> 6 by about ninefold again as
+# dinucleotides come in. So the two seed settings are one choice, as
+# `max_extension` and `min_identity` are, and a grid has to move them together.
 GENOME = FinderParams(
     max_motif=100,
     min_seed_length=12,

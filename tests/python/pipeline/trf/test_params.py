@@ -52,6 +52,63 @@ def test_every_source_has_a_default_profile():
     assert set(DEFAULT_PROFILE.values()) <= set(PROFILES)
 
 
+def test_effective_min_units_is_whichever_floor_asks_for_more():
+    """The two seed floors are one constraint, and the unit one is often inert.
+
+    A seed must clear ``min_seed_units`` and ``min_seed_length`` together, so a
+    trinucleotide under the GENOME profile needs four units rather than the three
+    the profile names. Getting this wrong reads a grid point as a change when it
+    is not one.
+    """
+    params = FinderParams(min_seed_units=3, min_seed_length=12)
+    assert params.effective_min_units(3) == 4      # 3 units would be a 9 bp seed
+    assert params.effective_min_units(4) == 3      # 12 bp exactly; the unit floor binds
+    assert params.effective_min_units(1) == 12     # mononucleotide: all length
+    assert params.effective_min_units(100) == 3    # long motif: all units
+
+    assert params.seed_units_bind_from == 4
+    assert FinderParams(min_seed_units=3, min_seed_length=9).seed_units_bind_from == 3
+    assert FinderParams(min_seed_units=3, min_seed_length=6).seed_units_bind_from == 2
+
+
+def test_effective_min_units_rejects_a_motif_shorter_than_a_base():
+    with pytest.raises(ValueError, match="at least 1"):
+        FinderParams().effective_min_units(0)
+
+
+def test_effective_min_units_agrees_with_the_finder():
+    """The arithmetic above, checked against ``ATRFinder`` rather than asserted.
+
+    A CAG tract of exactly three units is a 9 bp seed: returned while the length
+    floor is 9 or below, dropped at 10 and 12, with ``min_seed_units`` fixed at 3
+    throughout. This is the step that makes a seed-length sweep move in jumps.
+    """
+    import pytrf
+
+    flank = "GTCATGCCTAGGACTTGACCATGCAGTTACGGATCCTAAGCTTGGCCAATTGCA"
+    for units in (3, 4):
+        seq = flank + "CAG" * units + flank
+        for seed_length in (6, 8, 9, 10, 12):
+            params = FinderParams(min_seed_units=3, min_seed_length=seed_length,
+                                  max_extension=0)
+            found = bool(list(pytrf.ATRFinder("c", seq, **params.as_kwargs())))
+            assert found == (units >= params.effective_min_units(3)), (
+                f"{units} units of CAG at min_seed_length={seed_length}"
+            )
+
+
+def test_genome_profiles_unit_floor_is_inert_for_short_motifs():
+    """Documenting the profile's own trap, so a change to it is deliberate.
+
+    GENOME asks for 3 seed units but sets a 12 bp floor, which no mono-, di- or
+    trinucleotide repeat can satisfy at 3 units. Those are the repeats a bacterial
+    genome is mostly made of, which is why the profile stays flagged provisional.
+    """
+    assert GENOME.seed_units_bind_from == 4
+    for motif_length in (1, 2, 3):
+        assert GENOME.effective_min_units(motif_length) > GENOME.min_seed_units
+
+
 def test_genome_profile_extension_is_survivable():
     """A large extension plus a working gate finds nothing at all.
 
