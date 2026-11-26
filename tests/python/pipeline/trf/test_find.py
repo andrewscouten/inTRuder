@@ -53,6 +53,45 @@ def test_extension_runs_past_the_tract_into_the_flank():
     assert extended.purity < exact.purity
 
 
+def _background(rng, n):
+    """Random sequence over a 4-letter alphabet with no tract of its own to speak of."""
+    return "".join(rng.choice("ACGT") for _ in range(n))
+
+
+def test_extension_is_a_length_filter_not_a_merge():
+    """Extension pads every call, and the identity gate then drops the short ones.
+
+    Short pure tracts are planted in random background beside one long tract.
+    With the gate off, extension changes no call count: each extended call holds
+    exactly one call from ``max_extension=0``. With the gate on, extension
+    removes the short tracts and keeps the long one, now longer than at 0.
+    """
+    import random
+
+    rng = random.Random(7)
+    tracts = ["ACG" * 4, "TTAG" * 3, "GA" * 7, "CAAT" * 3, "CAG" * 20]
+    sequence = "".join(_background(rng, 150) + tract for tract in tracts)
+    record = genomic(sequence + _background(rng, 150))
+
+    def calls(extension, identity):
+        params = GENOME.replace(max_extension=extension, min_identity=identity)
+        return sorted(find_in_record(record, params), key=lambda c: c.start)
+
+    pure, padded = calls(0, 0.0), calls(20, 0.0)
+    assert len(pure) == len(padded) >= len(tracts)
+    for wide in padded:
+        inside = [c for c in pure if wide.start <= c.start and c.end <= wide.end]
+        assert len(inside) == 1
+
+    long_at_0 = max(pure, key=lambda c: c.rep_length)
+    gated = calls(20, 0.8)
+    assert len(gated) < len(pure)
+    assert [c for c in gated if c.rep_length <= 16] == []
+    survivor = max(gated, key=lambda c: c.rep_length)
+    assert survivor.start <= long_at_0.start and survivor.end >= long_at_0.end
+    assert survivor.rep_length > long_at_0.rep_length
+
+
 def test_purity_is_a_fraction_not_a_percentage():
     record = genomic(FLANK + "CAG" * 30 + FLANK)
     for call in find_in_record(record, GENOME):

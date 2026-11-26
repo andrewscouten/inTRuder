@@ -382,7 +382,7 @@ def test_the_svlen_gate_still_reads_svlen(tmp_path):
 def test_filter_drops_failing_rows_and_writes_a_funnel(tmp_path):
     fasta = write_fasta(tmp_path, c1=FLANK + "CAG" * 30 + FLANK)
     calls, filtered = tmp_path / "calls.tsv", tmp_path / "filtered.tsv"
-    main(["find", str(fasta), str(calls)])
+    main(["find", str(fasta), str(calls), "--max-extension", "20"])
     assert main(["filter", str(calls), str(filtered),
                  "--filter", "genome", "--min-purity", "1.0"]) == 0
 
@@ -394,7 +394,7 @@ def test_filter_drops_failing_rows_and_writes_a_funnel(tmp_path):
 def test_filter_keep_failed_tags_without_dropping(tmp_path):
     fasta = write_fasta(tmp_path, c1=FLANK + "CAG" * 30 + FLANK)
     calls, filtered = tmp_path / "calls.tsv", tmp_path / "filtered.tsv"
-    main(["find", str(fasta), str(calls)])
+    main(["find", str(fasta), str(calls), "--max-extension", "20"])
     main(["filter", str(calls), str(filtered), "--filter", "genome",
           "--min-purity", "1.0", "--keep-failed"])
 

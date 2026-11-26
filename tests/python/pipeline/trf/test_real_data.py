@@ -457,7 +457,8 @@ def test_the_bundled_insertion_fasta_scans(tmp_path):
         pytest.skip("the bundled insertion FASTA is not available")
 
     table = tmp_path / "calls.tsv"
-    assert main(["find", "--format", "fasta", str(fasta), str(table)]) == 0
+    assert main(["find", "--format", "fasta", "--max-extension", "20",
+                 str(fasta), str(table)]) == 0
     with open(table, newline="") as handle:
         rows = list(csv.DictReader(handle, delimiter="\t"))
 

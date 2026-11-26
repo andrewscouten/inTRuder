@@ -10,7 +10,7 @@ So the numbers are named once here and selected as a *profile*, rather than
 being six defaults on an argument parser that every caller silently inherits.
 
     sv        VCF insertions, corrected -- see the note above :data:`SV`
-    genome    provisional, for whole-contig FASTA scans
+    genome    for whole-contig FASTA scans; pure tracts, seed floor still provisional
 
 ``min_seed_units`` and ``min_seed_length`` are not independent, which is worth
 knowing before either is tuned: a seed has to clear both, so the units a motif
@@ -143,31 +143,32 @@ SV = FinderParams(
     max_extension=20,
 )
 
-# Provisional, and deliberately left that way. `max_motif=500` is sized for a
-# long-read insertion of at most a few kb; against a 5 Mb contig it invites the
-# finder to extend a seed across a large fraction of a gene, so the ceiling
-# comes down and the seed floor comes up.
+# `max_motif=500` is sized for a long-read insertion of at most a few kb; against
+# a 5 Mb contig it invites the finder to extend a seed across a large fraction of
+# a gene, so the ceiling comes down and the seed floor comes up.
 #
-# `max_extension` is the knob that matters, and the inherited 10000 is not
-# merely untuned but unusable: with the identity gate working, an extension
-# that large always decays below 80% before it stops, and a scan of a genome
-# with three planted tracts returns nothing at all. So it takes the same value
-# as SV and stays flagged.
+# `max_extension=0` catalogs pure tracts with exact boundaries. A nonzero value
+# does not fuse neighbouring tracts: pytrf never emits overlapping calls, and in
+# the 21 bacteria of the HMP mock community only 5 of 3,597 loci have a
+# same-motif neighbour within 10 bp. What it does is pad every call by up to the
+# cap on each side, after which the identity gate drops the calls that were too
+# short to carry the padding. It is therefore a flank-dependent length filter of
+# about 30 bp at a cap of 20 that also pads the survivors with flank.
 #
-# What that value is evidenced for is narrow, and worth stating exactly. On a
-# synthetic scan it recovers *that* a tract is there; it does not recover the
-# tract. Three planted 120 bp tracts come back as 160/155/159 bp -- inflated by
-# the full extension at each end -- with purity dragged from 1.00 to ~0.85 by
-# the absorbed background. The value that is exactly right on that test is 0,
-# and the only firm result is the upper bound: anything from about 100 up finds
-# nothing. It trades boundary accuracy against tolerance of a decayed tract, and
-# which way to trade is a property of real bacterial repeats, not of a synthetic
-# test where every planted tract is perfect by construction: at 0 a decayed CAG
-# tract is truncated at its first substitution, at 50 the reported motif itself
-# destabilises (CAG collapses into a 15-mer). Tuning it belongs against the
-# synced contaminant and HMP reference genomes -- see the parameter-profile item
-# in docs/todo.md in the parent project -- so it stays small, stays provisional,
-# and the CLI exposes it.
+# Measured over the 198 HMP target genomes (`min_identity=0.8`):
+#
+#     max_extension   loci      median per genome   trinucleotide loci
+#     0               16,790    68.5                6,112
+#     10              5,150     20.5                1,055
+#     20              2,695     10                  395
+#
+# On *Listeria monocytogenes* with the gate off, all 98 calls at 0 map one to one
+# onto the calls at 10 and 20, mean length goes from 15.4 bp to 32 and 46, and no
+# extended call contains more than one call from 0. With the gate on, 98 calls
+# become 28 at 10 and 17 at 20: of the 80 calls at the 12 bp floor, 77 are gone at
+# 20, while 12 of the 15 calls longer than 16 bp survive. Padding also costs
+# spanning reads, since HMP reads are 60-100 bp. Any length floor belongs to the
+# allele caller, as an explicit setting, not to the finder's extension.
 # `min_seed_length=12` is the setting with the most evidence against it, and it is
 # the one to revisit first. With `min_seed_units=3` it puts `seed_units_bind_from`
 # at 4, so the unit floor is inert for every mono-, di- and trinucleotide repeat --
@@ -196,7 +197,7 @@ SV = FinderParams(
 GENOME = FinderParams(
     max_motif=100,
     min_seed_length=12,
-    max_extension=20,      # provisional; see above
+    max_extension=0,
 )
 
 PROFILES = {"sv": SV, "genome": GENOME}
